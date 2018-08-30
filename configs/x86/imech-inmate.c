@@ -6,10 +6,10 @@
 struct {
 	struct jailhouse_cell_desc cell;
 	__u64 cpus[1];
-	struct jailhouse_memory mem_regions[2];
+	struct jailhouse_memory mem_regions[3];
 	struct jailhouse_cache cache_regions[1];
 	__u8 pio_bitmap[0x2000];
-#if 0
+#if 1
 	struct jailhouse_pci_device pci_devices[1];
         struct jailhouse_pci_capability pci_caps[1];
 #endif
@@ -27,7 +27,7 @@ struct {
 		.num_cache_regions = ARRAY_SIZE(config.cache_regions),
 		.num_irqchips = 0,
 		.pio_bitmap_size = ARRAY_SIZE(config.pio_bitmap),
-#if 1
+#if 0
 		.num_pci_devices = 0,
 #else
 		.num_pci_devices = ARRAY_SIZE(config.pci_devices),
@@ -62,7 +62,7 @@ struct {
 				JAILHOUSE_MEM_COMM_REGION,
 		},
 
-#if 0
+#if 1
                 /* Ethernet BAR0 */ {
                         .phys_start = 0xdf100000,
                         .virt_start = 0xdf100000,
@@ -109,7 +109,7 @@ struct {
 
 #endif
 
-#if 0
+#if 1
         .pci_devices = {
                   { /* Ethernet @03:00.0 */
                           .type = JAILHOUSE_PCI_TYPE_DEVICE,
