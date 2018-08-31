@@ -52,7 +52,8 @@ struct {
 			.virt_start = 0,
 			.size = 0x00100000,
 			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE |
-				JAILHOUSE_MEM_EXECUTE | JAILHOUSE_MEM_LOADABLE,
+				JAILHOUSE_MEM_EXECUTE | JAILHOUSE_MEM_LOADABLE |
+				JAILHOUSE_MEM_DMA,
 		},
 
 		/* communication region */ {

@@ -49,39 +49,74 @@ static int eth_pci_probe (struct eth_device *dev)
         return 0;
 }
 
+static void print_ring_regs(struct eth_device* dev, int i)
+{
+	u32 reg;
+	reg = mmio_read32((dev->bar_addr) + E1000_RXDCTL(i));
+	printk("RXDCTL(%d): %x\n", i, reg);
+}
+
+static void print_regs(struct eth_device* dev)
+{
+	u32 reg;
+	reg = mmio_read32((dev->bar_addr) + E1000_RCTL);
+	printk("RCTL: %x\n", reg);
+
+	for (int i = 0; i < 4; ++i)
+		print_ring_regs(dev, i);
+}
+
+static void rx_setup(struct eth_device* dev)
+{
+	u32 reg;
+
+	// Disable all queues (TODO: write 0 ?)
+	for (int i=0; i< 4; ++i){
+		reg = mmio_read32((dev->bar_addr) + E1000_RXDCTL(i));
+		reg &= ~(0x02000000);
+		mmio_write32((dev->bar_addr) + E1000_RXDCTL(i), reg);
+	}
+
+#if 0
+        /* Set DMA base address registers */
+	u64 rdba = ring->dma;
+        wr32(E1000_RDBAL(reg_idx),
+             rdba & 0x00000000ffffffffULL);
+        wr32(E1000_RDBAH(reg_idx), rdba >> 32);
+        wr32(E1000_RDLEN(reg_idx),
+             ring->count * sizeof(union e1000_adv_rx_desc));
+#endif
+
+
+
+	// Enable only the first queue
+	reg = mmio_read32((dev->bar_addr) + E1000_RXDCTL(0));
+	reg |= 0x02000000;
+	mmio_write32((dev->bar_addr) + E1000_RXDCTL(0), reg);
+}
+
+
+
 
 
 void inmate_main(void)
 {
 	struct eth_device dev;
-	u32 reg;
-	int ret;
+	int ret, size;
 
-	printk("Hello world!\n");
-	printk("Hello world!\n");
-	printk("Hello world!\n");
-	printk("Hello world!\n");
+	printk("Starting...\n");
 
 	ret = eth_pci_probe(&dev);
-	if (ret >= 0) {
-		reg = mmio_read32((dev.bar_addr) + E1000_RCTL);
-		printk("RCTL: %x\n", reg);
+	if (ret < 0)
+		goto error;
+	print_regs(&dev);
+	rx_setup(&dev);
+	print_regs(&dev);
 
-		reg = mmio_read32((dev.bar_addr) + E1000_RXDCTL(0));
-		printk("RXDCTL(0): %x\n", reg);
-		reg |= 0x02000000;
-		printk("RXDCTL(0): writing %x\n", reg);
-		mmio_write32((dev.bar_addr) + E1000_RXDCTL(0), reg);
-		reg = mmio_read32((dev.bar_addr) + E1000_RXDCTL(0));
-		printk("RXDCTL(0): %x\n", reg);
+	size = IGB_DEFAULT_RXD * sizeof(union e1000_adv_rx_desc);
+	printk("Size = %ld\n", sizeof(union e1000_adv_rx_desc));
+	printk("Size = %d\n", size);
 
-		reg = mmio_read32((dev.bar_addr) + E1000_RXDCTL(1));
-		printk("RXDCTL(1): %x\n", reg);
-		reg = mmio_read32((dev.bar_addr) + E1000_RXDCTL(2));
-		printk("RXDCTL(2): %x\n", reg);
-		reg = mmio_read32((dev.bar_addr) + E1000_RXDCTL(3));
-		printk("RXDCTL(3): %x\n", reg);
-	}
-
+error:
 	asm volatile("hlt");
 }
