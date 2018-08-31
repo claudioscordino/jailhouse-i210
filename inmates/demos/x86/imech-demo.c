@@ -54,13 +54,34 @@ static int eth_pci_probe (struct eth_device *dev)
 void inmate_main(void)
 {
 	struct eth_device dev;
+	u32 reg;
+	int ret;
 
 	printk("Hello world!\n");
 	printk("Hello world!\n");
 	printk("Hello world!\n");
 	printk("Hello world!\n");
 
-	eth_pci_probe(&dev);
+	ret = eth_pci_probe(&dev);
+	if (ret >= 0) {
+		reg = mmio_read32((dev.bar_addr) + E1000_RCTL);
+		printk("RCTL: %x\n", reg);
+
+		reg = mmio_read32((dev.bar_addr) + E1000_RXDCTL(0));
+		printk("RXDCTL(0): %x\n", reg);
+		reg |= 0x02000000;
+		printk("RXDCTL(0): writing %x\n", reg);
+		mmio_write32((dev.bar_addr) + E1000_RXDCTL(0), reg);
+		reg = mmio_read32((dev.bar_addr) + E1000_RXDCTL(0));
+		printk("RXDCTL(0): %x\n", reg);
+
+		reg = mmio_read32((dev.bar_addr) + E1000_RXDCTL(1));
+		printk("RXDCTL(1): %x\n", reg);
+		reg = mmio_read32((dev.bar_addr) + E1000_RXDCTL(2));
+		printk("RXDCTL(2): %x\n", reg);
+		reg = mmio_read32((dev.bar_addr) + E1000_RXDCTL(3));
+		printk("RXDCTL(3): %x\n", reg);
+	}
 
 	asm volatile("hlt");
 }
