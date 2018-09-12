@@ -10,8 +10,6 @@
  * the COPYING file in the top-level directory.
  */
 
-#define SPEED_100MBPS
-
 #include <inmate.h>
 #include "imech-demo.h"
 
@@ -80,36 +78,29 @@ static void eth_setup(struct eth_device* dev)
 {
 	u32 val;
 
-	val = mmio_read32((dev->bar_addr) + E1000_CTRL);
-#ifndef SPEED_100MBPS
-	// Do not force speed. Enable the PHY or ASD function to control the MAC
-	// speed setting.
-	val &= ~(E1000_CTRL_FRCSPD);
-#else
-	val |= E1000_CTRL_FRCSPD;
-#endif
-	// Set link up.
-        val |= E1000_CTRL_SLU;
-	mmio_write32((dev->bar_addr) + E1000_CTRL, val);
+	if (dev->speed == 100) {
+		// Bypass all speed detection mechanisms.
+		val = mmio_read32((dev->bar_addr) + E1000_CTRL_EXT);
+        	val |= E1000_CTRL_EXT_BYPS;
+		mmio_write32((dev->bar_addr) + E1000_CTRL_EXT, val);
+	}
 
-#ifdef SPEED_100MBPS
-	// Bypass all speed detection mechanisms.
-	val = mmio_read32((dev->bar_addr) + E1000_CTRL_EXT);
-        val |= E1000_CTRL_EXT_BYPS;
-	mmio_write32((dev->bar_addr) + E1000_CTRL_EXT, val);
-
-	// Set link to 100 Mp/s (TODO: set also PHY)
 	val = mmio_read32((dev->bar_addr) + E1000_CTRL);
 	printk("CTRL (before changing speed):\t%x\n", val);
-        val &= ~(E1000_CTRL_SPEED);
-        val |= E1000_CTRL_SPEED_100;
+        val |= E1000_CTRL_SLU; // Set link up
+	if (dev->speed == 100) {
+        	val &= ~(E1000_CTRL_SPEED);
+        	val |= E1000_CTRL_SPEED_100; // Set link to 100 Mp/s (TODO: set also PHY ?)
+		val |= E1000_CTRL_FRCSPD; // Force speed
+	} else {
+		val &= ~(E1000_CTRL_FRCSPD); // Enable PHY to control MAC speed
+	}
 	mmio_write32((dev->bar_addr) + E1000_CTRL, val);
+	delay_us(20000);
 
 	val = mmio_read32((dev->bar_addr) + E1000_CTRL);
 	printk("CTRL (after changing speed):\t%x\n", val);
 
-	delay_us(20000);
-#endif
 
 	// Check link speed
 	val = mmio_read32((dev->bar_addr) + E1000_STATUS);
@@ -154,6 +145,7 @@ void inmate_main(void)
 {
 	struct eth_device dev;
 	int ret, size;
+	dev.speed = 100;
 
 	printk("Starting...\n");
 

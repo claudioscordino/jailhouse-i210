@@ -80,7 +80,8 @@ union e1000_adv_tx_desc {
 
 
 struct eth_device {
-	void *bar_addr;
+	void	*bar_addr;
+	u16	speed;
 };
 
 
