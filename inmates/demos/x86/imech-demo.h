@@ -18,6 +18,9 @@
 #define TX_DESCRIPTORS          8
 
 /* ============================ Registers =================================== */
+#define E1000_CTRL     0x00000  /* Device Control - RW */
+	#define E1000_CTRL_SLU      0x00000040  /* Set link up (Force Link) */
+	#define E1000_CTRL_FRCSPD   0x00000800  /* Force Speed */
 #define E1000_RCTL     0x00100  /* RX Control - RW */
 #define E1000_RXDCTL(_n)  ((_n) < 4 ? (0x02828 + ((_n) * 0x100)) \
                                     : (0x0C028 + ((_n) * 0x40)))

@@ -17,6 +17,25 @@
 static union e1000_adv_rx_desc rx_ring[RX_DESCRIPTORS] __attribute__((aligned(128)));
 static union e1000_adv_tx_desc tx_ring[TX_DESCRIPTORS] __attribute__((aligned(128)));
 
+static void print_ring_regs(struct eth_device* dev, int i)
+{
+	u32 val;
+	val = mmio_read32((dev->bar_addr) + E1000_RXDCTL(i));
+	printk("RXDCTL(%d): %x\n", i, val);
+}
+
+static void print_regs(struct eth_device* dev)
+{
+	u32 val;
+	val = mmio_read32((dev->bar_addr) + E1000_RCTL);
+	printk("RCTL: %x\n", val);
+	val = mmio_read32((dev->bar_addr) + E1000_CTRL);
+	printk("CTRL: %x\n", val);
+
+	for (int i = 0; i < 4; ++i)
+		print_ring_regs(dev, i);
+}
+
 static int eth_pci_probe (struct eth_device *dev)
 {
         u64 bar;
@@ -52,32 +71,22 @@ static int eth_pci_probe (struct eth_device *dev)
         return 0;
 }
 
-static void print_ring_regs(struct eth_device* dev, int i)
-{
-	u32 reg;
-	reg = mmio_read32((dev->bar_addr) + E1000_RXDCTL(i));
-	printk("RXDCTL(%d): %x\n", i, reg);
-}
 
-static void print_regs(struct eth_device* dev)
+static void eth_setup(struct eth_device* dev)
 {
-	u32 reg;
-	reg = mmio_read32((dev->bar_addr) + E1000_RCTL);
-	printk("RCTL: %x\n", reg);
+	u32 val;
 
-	for (int i = 0; i < 4; ++i)
-		print_ring_regs(dev, i);
-}
-
-static void rx_setup(struct eth_device* dev)
-{
-	u32 reg;
+	// Do not force speed. Set link up. */
+	val = mmio_read32((dev->bar_addr) + E1000_CTRL);
+	val &= ~(E1000_CTRL_FRCSPD);
+        val |= E1000_CTRL_SLU;
+	mmio_write32((dev->bar_addr) + E1000_CTRL, val);
 
 	// Disable all queues (TODO: write 0 ?)
 	for (int i=0; i< 4; ++i){
-		reg = mmio_read32((dev->bar_addr) + E1000_RXDCTL(i));
-		reg &= ~(0x02000000);
-		mmio_write32((dev->bar_addr) + E1000_RXDCTL(i), reg);
+		val = mmio_read32((dev->bar_addr) + E1000_RXDCTL(i));
+		val &= ~(0x02000000);
+		mmio_write32((dev->bar_addr) + E1000_RXDCTL(i), val);
 	}
 
 #if 0
@@ -93,9 +102,9 @@ static void rx_setup(struct eth_device* dev)
 
 
 	// Enable only the first queue
-	reg = mmio_read32((dev->bar_addr) + E1000_RXDCTL(0));
-	reg |= 0x02000000;
-	mmio_write32((dev->bar_addr) + E1000_RXDCTL(0), reg);
+	val = mmio_read32((dev->bar_addr) + E1000_RXDCTL(0));
+	val |= 0x02000000;
+	mmio_write32((dev->bar_addr) + E1000_RXDCTL(0), val);
 }
 
 
@@ -112,8 +121,9 @@ void inmate_main(void)
 	ret = eth_pci_probe(&dev);
 	if (ret < 0)
 		goto error;
+
 	print_regs(&dev);
-	rx_setup(&dev);
+	eth_setup(&dev);
 	print_regs(&dev);
 
 	size = IGB_DEFAULT_RXD * sizeof(union e1000_adv_rx_desc);
