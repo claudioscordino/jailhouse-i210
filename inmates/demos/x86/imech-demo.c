@@ -14,6 +14,9 @@
 
 #include "imech-demo.h"
 
+static union e1000_adv_rx_desc rx_ring[RX_DESCRIPTORS] __attribute__((aligned(128)));
+static union e1000_adv_tx_desc tx_ring[TX_DESCRIPTORS] __attribute__((aligned(128)));
+
 static int eth_pci_probe (struct eth_device *dev)
 {
         u64 bar;

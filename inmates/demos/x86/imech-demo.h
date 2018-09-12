@@ -1,6 +1,7 @@
 #ifndef INMATE_ETH_H
 #define INMATE_ETH_H
 
+/* ============================ Hardware ==================================== */
 /* Taken using "sudo lspci -nn" */
 #define ETH_VENDORID		0x8086
 #define ETH_DEVICEID		0x1533
@@ -8,14 +9,21 @@
 /* TODO: check */
 #define ETH_IRQ_VECTOR		42
 
+/* ============================ Data structures ============================= */
 #define IGB_DEFAULT_RXD		256
 #define IGB_DEFAULT_TXD		256
 
-#define E1000_RCTL     0x00100  /* RX Control - RW */
+#define RX_DESCRIPTORS          8
+#define RX_BUFFER_SIZE          2048
+#define TX_DESCRIPTORS          8
 
+/* ============================ Registers =================================== */
+#define E1000_RCTL     0x00100  /* RX Control - RW */
 #define E1000_RXDCTL(_n)  ((_n) < 4 ? (0x02828 + ((_n) * 0x100)) \
                                     : (0x0C028 + ((_n) * 0x40)))
+
 /* Receive Descriptor - Advanced */
+/* From linux/drivers/net/ethernet/intel/igb/e1000_82575.h */
 union e1000_adv_rx_desc {
         struct {
                 u64 pkt_addr;             /* Packet buffer address */
@@ -41,6 +49,21 @@ union e1000_adv_rx_desc {
                         u16 vlan;             /* VLAN tag */
                 } upper;
         } wb;  /* writeback */
+};
+
+/* Transmit Descriptor - Advanced */
+/* From linux/drivers/net/ethernet/intel/igb/e1000_82575.h */
+union e1000_adv_tx_desc {
+        struct {
+                u64 buffer_addr;    /* Address of descriptor's data buf */
+                u32 cmd_type_len;
+                u32 olinfo_status;
+        } read;
+        struct {
+                u64 rsvd;       /* Reserved */
+                u32 nxtseq_seed;
+                u32 status;
+        } wb;
 };
 
 
