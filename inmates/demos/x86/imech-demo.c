@@ -27,10 +27,13 @@ static void print_ring_regs(struct eth_device* dev, int i)
 static void print_regs(struct eth_device* dev)
 {
 	u32 val;
+	printk("~~~~~~~~~~~~~~~~~~~~~~~\n");
 	val = mmio_read32((dev->bar_addr) + E1000_RCTL);
 	printk("RCTL: %x\n", val);
 	val = mmio_read32((dev->bar_addr) + E1000_CTRL);
 	printk("CTRL: %x\n", val);
+	val = mmio_read32((dev->bar_addr) + E1000_STATUS);
+	printk("STATUS: %x\n", val);
 
 	for (int i = 0; i < 4; ++i)
 		print_ring_regs(dev, i);
@@ -81,6 +84,16 @@ static void eth_setup(struct eth_device* dev)
 	val &= ~(E1000_CTRL_FRCSPD);
         val |= E1000_CTRL_SLU;
 	mmio_write32((dev->bar_addr) + E1000_CTRL, val);
+
+	// Check link speed
+	val = mmio_read32((dev->bar_addr) + E1000_STATUS);
+	val &= E1000_STATUS_SPEED;
+	if (val == E1000_STATUS_SPEED_10)
+		printk("Link speed: 10 Mb/s\n");
+	else if (val == E1000_STATUS_SPEED_100)
+		printk("Link speed: 100 Mb/s\n");
+	else
+		printk("Link speed: 1000 Mb/s\n");
 
 	// Disable all queues (TODO: write 0 ?)
 	for (int i=0; i< 4; ++i){
