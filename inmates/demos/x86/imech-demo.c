@@ -81,9 +81,8 @@ static void eth_set_speed(struct eth_device* dev)
 
 	if (dev->speed == 100) {
 		// Bypass all speed detection mechanisms.
-		val = mmio_read32((dev->bar_addr) + E1000_CTRL_EXT);
-        	val |= E1000_CTRL_EXT_BYPS;
-		mmio_write32((dev->bar_addr) + E1000_CTRL_EXT, val);
+		mmio_write32((dev->bar_addr) + E1000_CTRL_EXT,
+			mmio_read32((dev->bar_addr) + E1000_CTRL_EXT) | E1000_CTRL_EXT_BYPS);
 	}
 
 	val = mmio_read32((dev->bar_addr) + E1000_CTRL);
@@ -133,9 +132,8 @@ static void eth_setup(struct eth_device* dev)
 
 	// Disable all queues (TODO: write 0 ?)
 	for (int i=0; i< NUM_QUEUES; ++i){
-		val = mmio_read32((dev->bar_addr) + E1000_RXDCTL(i));
-		val &= ~(E1000_RXDCTL_ENABLE);
-		mmio_write32((dev->bar_addr) + E1000_RXDCTL(i), val);
+		mmio_write32((dev->bar_addr) + E1000_RXDCTL(i),
+			mmio_read32((dev->bar_addr) + E1000_RXDCTL(i)) & ~(E1000_RXDCTL_ENABLE));
 	}
 
 	// Enable only the first queue
