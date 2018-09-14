@@ -8,14 +8,15 @@
 
 /* TODO: check */
 #define ETH_IRQ_VECTOR		42
+#define NUM_QUEUES	4 // i210 has 4 rx and 4 tx queues
 
 /* ============================ Data structures ============================= */
-#define IGB_DEFAULT_RXD		256
-#define IGB_DEFAULT_TXD		256
+// #define IGB_DEFAULT_RXD		256
+// #define IGB_DEFAULT_TXD		256
 
-#define RX_DESCRIPTORS          8
+// #define RX_DESCRIPTORS          8
 #define RX_BUFFER_SIZE          2048
-#define TX_DESCRIPTORS          8
+// #define TX_DESCRIPTORS          8
 
 /* ============================ Registers =================================== */
 #define E1000_CTRL	0x00000	/* Device Control - RW */
@@ -34,8 +35,13 @@
 #define E1000_RAH	0x05404
 	#define E1000_RAH_AV		(1 << 31)
 
-#define E1000_RXDCTL(_n)  ((_n) < 4 ? (0x02828 + ((_n) * 0x100)) \
-                                    : (0x0C028 + ((_n) * 0x40)))
+#define E1000_RDBAL(_n)		(0x0C000 + ((_n) * 0x040)) // Descriptor lower bits
+#define E1000_RDBAH(_n)		(0x0C004 + ((_n) * 0x040)) // Descriptor higher bits
+#define E1000_RDLEN(_n)		(0x0C008 + ((_n) * 0x040))
+#define E1000_RDH(_n)		(0x0C010 + ((_n) * 0x040))
+#define E1000_RDT(_n)		(0x0C018 + ((_n) * 0x040))
+#define E1000_RXDCTL(_n)	(0x0C028 + ((_n) * 0x100))
+	#define E1000_RXDCTL_ENABLE	(1<<25)
 
 /* Receive Descriptor - Advanced */
 /* From linux/drivers/net/ethernet/intel/igb/e1000_82575.h */

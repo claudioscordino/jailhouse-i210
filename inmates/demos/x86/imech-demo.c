@@ -13,8 +13,9 @@
 #include <inmate.h>
 #include "imech-demo.h"
 
-static union e1000_adv_rx_desc rx_ring[RX_DESCRIPTORS] __attribute__((aligned(128)));
-static union e1000_adv_tx_desc tx_ring[TX_DESCRIPTORS] __attribute__((aligned(128)));
+static u8 buffer [RX_BUFFER_SIZE];
+static union e1000_adv_rx_desc rx_ring __attribute__((aligned(128)));
+static union e1000_adv_tx_desc tx_ring __attribute__((aligned(128)));
 
 static void print_ring_regs(struct eth_device* dev, int i)
 {
@@ -131,28 +132,20 @@ static void eth_setup(struct eth_device* dev)
 
 
 	// Disable all queues (TODO: write 0 ?)
-	for (int i=0; i< 4; ++i){
+	for (int i=0; i< NUM_QUEUES; ++i){
 		val = mmio_read32((dev->bar_addr) + E1000_RXDCTL(i));
-		val &= ~(0x02000000);
+		val &= ~(E1000_RXDCTL_ENABLE);
 		mmio_write32((dev->bar_addr) + E1000_RXDCTL(i), val);
 	}
 
-#if 0
-        /* Set DMA base address registers */
-	u64 rdba = ring->dma;
-        wr32(E1000_RDBAL(reg_idx),
-             rdba & 0x00000000ffffffffULL);
-        wr32(E1000_RDBAH(reg_idx), rdba >> 32);
-        wr32(E1000_RDLEN(reg_idx),
-             ring->count * sizeof(union e1000_adv_rx_desc));
-#endif
-
-
-
 	// Enable only the first queue
-	val = mmio_read32((dev->bar_addr) + E1000_RXDCTL(0));
-	val |= 0x02000000;
-	mmio_write32((dev->bar_addr) + E1000_RXDCTL(0), val);
+        mmio_write32(dev->bar_addr + E1000_RDBAL(0), (unsigned long)&rx_ring);
+        mmio_write32(dev->bar_addr + E1000_RDBAH(0), 0);
+        mmio_write32(dev->bar_addr + E1000_RDLEN(0), sizeof(rx_ring));
+        mmio_write32(dev->bar_addr + E1000_RDH(0), 0);
+        mmio_write32(dev->bar_addr + E1000_RDT(0), 0);
+        mmio_write32(dev->bar_addr + E1000_RXDCTL(0),
+                  	mmio_read32(dev->bar_addr + E1000_RXDCTL(0)) | E1000_RXDCTL_ENABLE);
 }
 
 
@@ -162,7 +155,7 @@ static void eth_setup(struct eth_device* dev)
 void inmate_main(void)
 {
 	struct eth_device dev;
-	int ret, size;
+	int ret;
 	dev.speed = 100;
 
 	printk("Starting...\n");
@@ -176,9 +169,8 @@ void inmate_main(void)
 	eth_setup(&dev);
 	print_regs(&dev);
 
-	size = IGB_DEFAULT_RXD * sizeof(union e1000_adv_rx_desc);
 	printk("Size = %ld\n", sizeof(union e1000_adv_rx_desc));
-	printk("Size = %d\n", size);
+	printk("Size = %ld\n", sizeof(rx_ring));
 
 error:
 	asm volatile("hlt");
