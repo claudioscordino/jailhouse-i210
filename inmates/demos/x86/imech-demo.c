@@ -1,13 +1,6 @@
 /*
- * Jailhouse, a Linux-based partitioning hypervisor
- *
- * Copyright (c) Siemens AG, 2013-2016
- *
  * Authors:
- *  Jan Kiszka <jan.kiszka@siemens.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
+ *  Claudio Scordino <claudio@evidence.eu.com>
  */
 
 #include <inmate.h>
@@ -54,17 +47,17 @@ static int eth_pci_probe(struct eth_device *dev)
                         pci_read_config(bdf, PCI_CFG_DEVICE_ID, 2),
                         bdf >> 8, (bdf >> 3) & 0x1f, bdf & 0x3);
 
-        /* Read Base Address Register in the configuration */
+        // Read Base Address Register in the configuration
         bar = pci_read_config(bdf, PCI_CFG_BAR, 4);
         if ((bar & 0x6) == 0x4)
                 bar |= (u64)pci_read_config(bdf, PCI_CFG_BAR + 4, 4) << 32;
 
-        /* Map BAR in the virtual memory */
+        // Map BAR in the virtual memory
         dev->bar_addr = (void *)(bar & ~0xfUL);
         map_range(dev->bar_addr, PAGE_SIZE, MAP_UNCACHED);
         print("BAR at %p\n", dev->bar_addr);
 
-        /* Set MSI IRQ vector */
+        // Set MSI IRQ vector
         pci_msi_set_vector(bdf, ETH_IRQ_VECTOR);
 
         pci_write_config(bdf, PCI_CFG_COMMAND,
