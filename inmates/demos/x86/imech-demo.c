@@ -38,7 +38,7 @@ static void print_regs(struct eth_device* dev)
 		print_ring_regs(dev, i);
 }
 
-static int eth_pci_probe (struct eth_device *dev)
+static int eth_pci_probe(struct eth_device *dev)
 {
         u64 bar;
         int bdf;
@@ -74,7 +74,7 @@ static int eth_pci_probe (struct eth_device *dev)
 }
 
 
-static void eth_setup(struct eth_device* dev)
+static void eth_set_speed(struct eth_device* dev)
 {
 	u32 val;
 
@@ -111,6 +111,24 @@ static void eth_setup(struct eth_device* dev)
 		printk("Link speed: 100 Mb/s\n");
 	else
 		printk("Link speed: 1000 Mb/s\n");
+}
+
+
+static void eth_setup(struct eth_device* dev)
+{
+	u32 val;
+
+	if (mmio_read32(dev->bar_addr + E1000_RAH) & E1000_RAH_AV) {
+		u8 mac[6];
+		*(u32 *)mac = mmio_read32(dev->bar_addr + E1000_RAL);
+		*(u16 *)&mac[4] = mmio_read32(dev->bar_addr + E1000_RAH);
+
+		printk("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+	       			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	} else {
+		printk("ERROR: need to get MAC through EERD\n");
+	}
+
 
 	// Disable all queues (TODO: write 0 ?)
 	for (int i=0; i< 4; ++i){
@@ -154,6 +172,7 @@ void inmate_main(void)
 		goto error;
 
 	print_regs(&dev);
+	eth_set_speed(&dev);
 	eth_setup(&dev);
 	print_regs(&dev);
 

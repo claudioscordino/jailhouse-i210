@@ -23,13 +23,16 @@
 	#define E1000_CTRL_SPEED	0x00000300	/* Link speed */
 	#define E1000_CTRL_SPEED_100	0x00000100	/* 100 Mb/s speed */
 	#define E1000_CTRL_FRCSPD	0x00000800	/* Force Speed */
-#define E1000_STATUS   0x00008	/* Device Status - RO */
+#define E1000_STATUS	0x00008	/* Device Status - RO */
 	#define E1000_STATUS_SPEED	0x000000C0	/* Link speed */
 	#define E1000_STATUS_SPEED_10	0x00000000      /* Speed 10  Mb/s */
 	#define E1000_STATUS_SPEED_100	0x00000040      /* Speed 100 Mb/s */
-#define E1000_CTRL_EXT 0x00018	/* Extended Device Control - RW */
+#define E1000_CTRL_EXT	0x00018	/* Extended Device Control - RW */
 	#define E1000_CTRL_EXT_BYPS	0x00008000	/* Speed Select Bypass */
-#define E1000_RCTL     0x00100  /* RX Control - RW */
+#define E1000_RCTL	0x00100  /* RX Control - RW */
+#define E1000_RAL	0x05400
+#define E1000_RAH	0x05404
+	#define E1000_RAH_AV		(1 << 31)
 
 #define E1000_RXDCTL(_n)  ((_n) < 4 ? (0x02828 + ((_n) * 0x100)) \
                                     : (0x0C028 + ((_n) * 0x40)))
