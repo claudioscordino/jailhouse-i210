@@ -11,12 +11,7 @@
 #define NUM_QUEUES	4 // i210 has 4 rx and 4 tx queues
 
 /* ============================ Data structures ============================= */
-// #define IGB_DEFAULT_RXD		256
-// #define IGB_DEFAULT_TXD		256
-
-// #define RX_DESCRIPTORS          8
-#define RX_BUFFER_SIZE          2048
-// #define TX_DESCRIPTORS          8
+#define RX_BUFFER_SIZE          2048 // This must be written into RCTL.BSIZE
 
 /* ============================ Registers =================================== */
 #define E1000_CTRL	0x00000	/* Device Control - RW */
@@ -31,6 +26,11 @@
 #define E1000_CTRL_EXT	0x00018	/* Extended Device Control - RW */
 	#define E1000_CTRL_EXT_BYPS	0x00008000	/* Speed Select Bypass */
 #define E1000_RCTL	0x00100  /* RX Control - RW */
+	#define E1000_RCTL_EN		(1 << 1)
+	#define E1000_RCTL_BAM		(1 << 15)	// Accept broadcast packets
+	#define E1000_RCTL_BSIZE	0x30000		// Buffer size
+	#define E1000_RCTL_BSIZE_2048	0x00000 	// Buffer size = 2048
+	#define E1000_RCTL_SECRC	(1 << 26)	// Strip Ethernet CRC From Incoming Packet
 #define E1000_RAL	0x05400
 #define E1000_RAH	0x05404
 	#define E1000_RAH_AV		(1 << 31)
