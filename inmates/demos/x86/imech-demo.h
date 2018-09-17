@@ -18,14 +18,17 @@
 
 // ============================ Registers ======================================
 #define E1000_CTRL	0x00000	// Device Control - RW
-	#define E1000_CTRL_SLU		0x00000040	// Set link up (Force Link)
-	#define E1000_CTRL_SPEED	0x00000300	// Link speed
-	#define E1000_CTRL_SPEED_100	0x00000100	// 100 Mb/s speed
-	#define E1000_CTRL_FRCSPD	0x00000800	// Force Speed
+	#define E1000_CTRL_SLU		(1 << 6)	// Set link up (Force Link)
+	#define E1000_CTRL_SPEED	(3 << 8)	// Link speed mask
+	#define E1000_CTRL_SPEED_100	(1 << 8)	// 100 Mb/s speed
+	#define E1000_CTRL_FRCSPD	(1 << 11)	// Force Speed
+	#define E1000_CTRL_RST		(1 << 26)	// Reset
 #define E1000_STATUS	0x00008	// Device Status - RO
-	#define E1000_STATUS_SPEED	0x000000C0	// Link speed
-	#define E1000_STATUS_SPEED_10	0x00000000      // Speed 10  Mb/s
-	#define E1000_STATUS_SPEED_100	0x00000040      // Speed 100 Mb/s
+	#define E1000_STATUS_FD		(1 << 0)	// Full Duplex (TODO: check if needed)
+	#define E1000_STATUS_LU		(1 << 1)	// Link up
+	#define E1000_STATUS_SPEED	(3 << 6)	// Link speed
+	#define E1000_STATUS_SPEED_10	(0 << 6)	// Speed 10  Mb/s
+	#define E1000_STATUS_SPEED_100	(4 << 6)	// Speed 100 Mb/s
 #define E1000_CTRL_EXT	0x00018	// Extended Device Control - RW
 	#define E1000_CTRL_EXT_BYPS	0x00008000	// Speed Select Bypass
 #define E1000_RCTL	0x00100  // RX Control - RW
@@ -38,6 +41,10 @@
 	#define E1000_TCTL_EN		(1 << 1)
 	#define E1000_TCTL_PSP		(1 << 3)	// Pad Short Packets
 	#define E1000_TCTL_CT_IEEE	(0xf << 4)	// IEEE Collision threshold
+#define E1000_TIPG	0x00410  // TX Control - Inter-Packet Gap
+	#define E1000_TIPG_IPGT_DEF	(10 << 0)
+	#define E1000_TIPG_IPGR1_DEF	(10 << 10)
+	#define E1000_TIPG_IPGR2_DEF	(10 << 20)
 
 #define E1000_RAL	0x05400
 #define E1000_RAH	0x05404
@@ -58,6 +65,14 @@
 #define E1000_TDT(_n)		(0x0E018 + ((_n) * 0x040))
 #define E1000_TXDCTL(_n)	(0x0E028 + ((_n) * 0x040))
 	#define E1000_TXDCTL_ENABLE	(1<<25)
+
+#define E1000_MDIC		0x0020
+	#define E1000_MDIC_REGADD_SHFT	16
+	#define E1000_MDIC_OP_WRITE	(0x1 << 26)
+	#define E1000_MDIC_OP_READ	(0x2 << 26)
+	#define E1000_MDIC_READY	(0x1 << 28)
+	#define E1000_MDIC_PHY_CTRL		0
+	#define E1000_MDIC_PHY_CTRL_POWER_DOWN	(1 << 11)
 
 // Receive Descriptor - Advanced
 // From linux/drivers/net/ethernet/intel/igb/e1000_82575.h
@@ -112,6 +127,9 @@ struct eth_device {
 
 
 #define FRAME_TYPE_ANNOUNCE	0x004a
+#define FRAME_TYPE_TARGET_ROLE	0x014a
+#define FRAME_TYPE_PING		0x024a
+#define FRAME_TYPE_PONG		0x034a
 struct eth_header {
 	u8	dst[6];
 	u8	src[6];

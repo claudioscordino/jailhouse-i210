@@ -6,10 +6,37 @@
 #include <inmate.h>
 #include "imech-demo.h"
 
+static u16 mdic_read(struct eth_device *dev, unsigned int reg)
+{
+	u32 val;
+
+	mmio_write32(dev->bar_addr + E1000_MDIC,
+		     (reg << E1000_MDIC_REGADD_SHFT) |
+		     E1000_MDIC_OP_READ);
+	do {
+		val = mmio_read32(dev->bar_addr + E1000_MDIC);
+		cpu_relax();
+	} while (!(val & E1000_MDIC_READY));
+
+	return (u16)val;
+}
+
+static void mdic_write(struct eth_device *dev, unsigned int reg, u16 val)
+{
+	mmio_write32(dev->bar_addr + E1000_MDIC,
+		     val | (reg << E1000_MDIC_REGADD_SHFT) | E1000_MDIC_OP_WRITE);
+	while (!(mmio_read32(dev->bar_addr + E1000_MDIC) & E1000_MDIC_READY))
+		cpu_relax();
+}
+
+
+
+
 static u8 buffer[RX_DESCR_NB * RX_BUFFER_SIZE];
 static union e1000_adv_rx_desc rx_ring [RX_DESCR_NB] __attribute__((aligned(128)));
 static union e1000_adv_tx_desc tx_ring [TX_DESCR_NB] __attribute__((aligned(128)));
 static unsigned int rx_idx, tx_idx;
+
 
 static void print_ring_regs(struct eth_device *dev, int i)
 {
@@ -54,15 +81,21 @@ static int eth_pci_probe(struct eth_device *dev)
                 bar |= (u64)pci_read_config(bdf, PCI_CFG_BAR + 4, 4) << 32;
 
         // Map BAR in the virtual memory
+	// TODO: check which one
         dev->bar_addr = (void *)(bar & ~0xfUL);
-        map_range(dev->bar_addr, PAGE_SIZE, MAP_UNCACHED);
+/*         map_range(dev->bar_addr, PAGE_SIZE, MAP_UNCACHED); */
+        map_range(dev->bar_addr, 128 * 1024, MAP_UNCACHED);
         print("BAR at %p\n", dev->bar_addr);
 
         // Set MSI IRQ vector
+	// TODO: missing in e1000
         pci_msi_set_vector(bdf, ETH_IRQ_VECTOR);
 
         pci_write_config(bdf, PCI_CFG_COMMAND,
                         PCI_CMD_MEM | PCI_CMD_MASTER, 2);
+
+	mmio_write32(dev->bar_addr + E1000_CTRL, E1000_CTRL_RST);
+	delay_us(20000);
 
         print("PCI device succesfully initialized\n");
         return 0;
@@ -95,6 +128,14 @@ static void eth_set_speed(struct eth_device *dev)
 	val = mmio_read32(dev->bar_addr + E1000_CTRL);
 	printk("CTRL (after changing speed):\t%x\n", val);
 
+	/* power up again in case the previous user turned it off */
+	mdic_write(dev, E1000_MDIC_PHY_CTRL,
+		  mdic_read(dev, E1000_MDIC_PHY_CTRL) & (~E1000_MDIC_PHY_CTRL_POWER_DOWN));
+
+	printk("Waiting for link...");
+	while (!(mmio_read32(dev->bar_addr + E1000_STATUS) & E1000_STATUS_LU))
+		cpu_relax();
+	printk(" ok\n");
 
 	// Check link speed
 	val = mmio_read32(dev->bar_addr + E1000_STATUS);
@@ -173,9 +214,9 @@ static void eth_setup_tx(struct eth_device *dev)
 	mmio_write32(dev->bar_addr + E1000_TCTL, mmio_read32(dev->bar_addr + E1000_TCTL) |
 		E1000_TCTL_EN | E1000_TCTL_PSP | E1000_TCTL_CT_IEEE);
 
-/* 	mmio_write32(mmiobar + E1000_REG_TIPG, */
-/* 		     E1000_TIPG_IPGT_DEF | E1000_TIPG_IPGR1_DEF | */
-/* 		     E1000_TIPG_IPGR2_DEF); */
+	mmio_write32(dev->bar_addr + E1000_TIPG,
+		     E1000_TIPG_IPGT_DEF | E1000_TIPG_IPGR1_DEF |
+		     E1000_TIPG_IPGR2_DEF);
 
 
 }
@@ -206,7 +247,7 @@ void inmate_main(void)
 	struct eth_header tx_packet;
 	struct eth_device dev;
 	int ret;
-	dev.speed = 100;
+	dev.speed = 1000;
 
 	printk("Starting...\n");
 
@@ -226,10 +267,12 @@ void inmate_main(void)
 
 	memcpy(tx_packet.src, dev.mac, sizeof(tx_packet.src));
 	memset(tx_packet.dst, 0xff, sizeof(tx_packet.dst));
-	tx_packet.type = FRAME_TYPE_ANNOUNCE;
-	for (int i = 0; i < 10; ++i)
+	tx_packet.type = FRAME_TYPE_PING;
+	for (int i = 0; i < 10000; ++i)
 		send_packet(&dev, &tx_packet, sizeof(tx_packet));
+	printk("Finished!\n");
 
 error:
-	asm volatile("hlt");
+/* 	asm volatile("hlt"); */
+	cpu_relax();
 }
