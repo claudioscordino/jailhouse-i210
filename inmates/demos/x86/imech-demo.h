@@ -8,10 +8,13 @@
 
 // TODO: check
 #define ETH_IRQ_VECTOR		42
-#define NUM_QUEUES	4 // i210 has 4 rx and 4 tx queues
+#define NUM_QUEUES		4 // i210 has 4 rx and 4 tx queues
 
 // ============================ Data structures ================================
-#define RX_BUFFER_SIZE          2048 // This must be written into RCTL.BSIZE
+#define RX_BUFFER_SIZE          2048	// This must be written into RCTL.BSIZE
+#define RX_DESCR_NB		8	// Number of descriptors in the rx queue
+					// It affects RDT
+#define TX_DESCR_NB		8
 
 // ============================ Registers ======================================
 #define E1000_CTRL	0x00000	// Device Control - RW

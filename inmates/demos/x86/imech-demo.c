@@ -6,9 +6,9 @@
 #include <inmate.h>
 #include "imech-demo.h"
 
-static u8 buffer [RX_BUFFER_SIZE];
-static union e1000_adv_rx_desc rx_ring __attribute__((aligned(128)));
-static union e1000_adv_tx_desc tx_ring __attribute__((aligned(128)));
+static u8 buffer[RX_DESCR_NB * RX_BUFFER_SIZE];
+static union e1000_adv_rx_desc rx_ring [RX_DESCR_NB] __attribute__((aligned(128)));
+static union e1000_adv_tx_desc tx_ring [TX_DESCR_NB] __attribute__((aligned(128)));
 
 static void print_ring_regs(struct eth_device* dev, int i)
 {
@@ -130,14 +130,15 @@ static void eth_setup(struct eth_device* dev)
 	}
 
 	// Make the ring point to the buffer
-	rx_ring.read.pkt_addr = (unsigned long) &buffer;
+	for (int i = 0; i < RX_DESCR_NB; ++i)
+		rx_ring[i].read.pkt_addr = (u64) &buffer [i * RX_BUFFER_SIZE];
 
 	// Enable only the first queue
         mmio_write32(dev->bar_addr + E1000_RDBAL(0), (unsigned long)&rx_ring);
         mmio_write32(dev->bar_addr + E1000_RDBAH(0), 0);
         mmio_write32(dev->bar_addr + E1000_RDLEN(0), sizeof(rx_ring));
         mmio_write32(dev->bar_addr + E1000_RDH(0), 0);
-        mmio_write32(dev->bar_addr + E1000_RDT(0), 0);
+        mmio_write32(dev->bar_addr + E1000_RDT(0), 0); // Overwritten below
         mmio_write32(dev->bar_addr + E1000_RXDCTL(0),
                   	mmio_read32(dev->bar_addr + E1000_RXDCTL(0)) | E1000_RXDCTL_ENABLE);
 
@@ -145,6 +146,8 @@ static void eth_setup(struct eth_device* dev)
 	val &= ~(E1000_RCTL_BAM | E1000_RCTL_BSIZE);
 	val |= (E1000_RCTL_EN | E1000_RCTL_SECRC | E1000_RCTL_BSIZE_2048);
 	mmio_write32(dev->bar_addr + E1000_RCTL, val);
+
+	mmio_write32(dev->bar_addr + E1000_RDT(0), RX_DESCR_NB - 1);
 }
 
 
