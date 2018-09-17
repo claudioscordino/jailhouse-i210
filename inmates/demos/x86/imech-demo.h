@@ -106,8 +106,17 @@ union e1000_adv_tx_desc {
 
 struct eth_device {
 	void	*bar_addr;
+	u8	mac[6];
 	u16	speed;
 };
+
+
+struct eth_header {
+	u8	dst[6];
+	u8	src[6];
+	u16	type;
+	u8	data[];
+} __attribute__((packed));
 
 
 

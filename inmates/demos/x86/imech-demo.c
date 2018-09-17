@@ -110,12 +110,11 @@ static void eth_set_speed(struct eth_device* dev)
 static void eth_print_mac_addr(struct eth_device* dev)
 {
 	if (mmio_read32(dev->bar_addr + E1000_RAH) & E1000_RAH_AV) {
-		u8 mac[6];
-		*(u32 *)mac = mmio_read32(dev->bar_addr + E1000_RAL);
-		*(u16 *)&mac[4] = mmio_read32(dev->bar_addr + E1000_RAH);
+		*(u32 *)dev->mac = mmio_read32(dev->bar_addr + E1000_RAL);
+		*(u16 *)&(dev->mac[4]) = mmio_read32(dev->bar_addr + E1000_RAH);
 
 		printk("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+				dev->mac[0], dev->mac[1], dev->mac[2], dev->mac[3], dev->mac[4], dev->mac[5]);
 	} else {
 		printk("ERROR: need to get MAC through EERD\n");
 	}
@@ -186,6 +185,7 @@ static void eth_setup_tx(struct eth_device* dev)
 
 void inmate_main(void)
 {
+	struct eth_header tx_packet;
 	struct eth_device dev;
 	int ret;
 	dev.speed = 100;
@@ -205,6 +205,11 @@ void inmate_main(void)
 
 	printk("Size = %ld\n", sizeof(union e1000_adv_rx_desc));
 	printk("Size = %ld\n", sizeof(rx_ring));
+
+/* 	memcpy(tx_packet.src, mac, sizeof(tx_packet.src)); */
+/* 	memset(tx_packet.dst, 0xff, sizeof(tx_packet.dst)); */
+/* 	tx_packet.type = FRAME_TYPE_ANNOUNCE; */
+/* 	send_packet(&tx_packet, sizeof(tx_packet)); */
 
 error:
 	asm volatile("hlt");
