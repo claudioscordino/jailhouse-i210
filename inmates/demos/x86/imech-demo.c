@@ -129,6 +129,9 @@ static void eth_setup(struct eth_device* dev)
 			mmio_read32((dev->bar_addr) + E1000_RXDCTL(i)) & ~(E1000_RXDCTL_ENABLE));
 	}
 
+	// Make the ring point to the buffer
+	rx_ring.read.pkt_addr = (unsigned long) &buffer;
+
 	// Enable only the first queue
         mmio_write32(dev->bar_addr + E1000_RDBAL(0), (unsigned long)&rx_ring);
         mmio_write32(dev->bar_addr + E1000_RDBAH(0), 0);
@@ -137,6 +140,7 @@ static void eth_setup(struct eth_device* dev)
         mmio_write32(dev->bar_addr + E1000_RDT(0), 0);
         mmio_write32(dev->bar_addr + E1000_RXDCTL(0),
                   	mmio_read32(dev->bar_addr + E1000_RXDCTL(0)) | E1000_RXDCTL_ENABLE);
+
 	val = mmio_read32(dev->bar_addr + E1000_RCTL);
 	val &= ~(E1000_RCTL_BAM | E1000_RCTL_BSIZE);
 	val |= (E1000_RCTL_EN | E1000_RCTL_SECRC | E1000_RCTL_BSIZE_2048);
