@@ -9,11 +9,12 @@
 static u8 buffer[RX_DESCR_NB * RX_BUFFER_SIZE];
 static union e1000_adv_rx_desc rx_ring [RX_DESCR_NB] __attribute__((aligned(128)));
 static union e1000_adv_tx_desc tx_ring [TX_DESCR_NB] __attribute__((aligned(128)));
+static unsigned int rx_idx, tx_idx;
 
-static void print_ring_regs(struct eth_device* dev, int i)
+static void print_ring_regs(struct eth_device *dev, int i)
 {
 	u32 val;
-	val = mmio_read32((dev->bar_addr) + E1000_RXDCTL(i));
+	val = mmio_read32(dev->bar_addr + E1000_RXDCTL(i));
 	printk("RXDCTL(%d): %x\n", i, val);
 }
 
@@ -21,11 +22,11 @@ static void print_regs(struct eth_device* dev)
 {
 	u32 val;
 	printk("~~~~~~~~~~~~~~~~~~~~~~~\n");
-	val = mmio_read32((dev->bar_addr) + E1000_RCTL);
+	val = mmio_read32(dev->bar_addr + E1000_RCTL);
 	printk("RCTL:\t%x\n", val);
-	val = mmio_read32((dev->bar_addr) + E1000_CTRL);
+	val = mmio_read32(dev->bar_addr + E1000_CTRL);
 	printk("CTRL:\t%x\n", val);
-	val = mmio_read32((dev->bar_addr) + E1000_STATUS);
+	val = mmio_read32(dev->bar_addr + E1000_STATUS);
 	printk("STATUS:\t%x\n", val);
 
 	for (int i = 0; i < 4; ++i)
@@ -68,17 +69,17 @@ static int eth_pci_probe(struct eth_device *dev)
 }
 
 
-static void eth_set_speed(struct eth_device* dev)
+static void eth_set_speed(struct eth_device *dev)
 {
 	u32 val;
 
 	if (dev->speed == 100) {
 		// Bypass all speed detection mechanisms.
-		mmio_write32((dev->bar_addr) + E1000_CTRL_EXT,
-			mmio_read32((dev->bar_addr) + E1000_CTRL_EXT) | E1000_CTRL_EXT_BYPS);
+		mmio_write32(dev->bar_addr + E1000_CTRL_EXT,
+			mmio_read32(dev->bar_addr + E1000_CTRL_EXT) | E1000_CTRL_EXT_BYPS);
 	}
 
-	val = mmio_read32((dev->bar_addr) + E1000_CTRL);
+	val = mmio_read32(dev->bar_addr + E1000_CTRL);
 	printk("CTRL (before changing speed):\t%x\n", val);
         val |= E1000_CTRL_SLU; // Set link up
 	if (dev->speed == 100) {
@@ -88,15 +89,15 @@ static void eth_set_speed(struct eth_device* dev)
 	} else {
 		val &= ~(E1000_CTRL_FRCSPD); // Enable PHY to control MAC speed
 	}
-	mmio_write32((dev->bar_addr) + E1000_CTRL, val);
+	mmio_write32(dev->bar_addr + E1000_CTRL, val);
 	delay_us(20000);
 
-	val = mmio_read32((dev->bar_addr) + E1000_CTRL);
+	val = mmio_read32(dev->bar_addr + E1000_CTRL);
 	printk("CTRL (after changing speed):\t%x\n", val);
 
 
 	// Check link speed
-	val = mmio_read32((dev->bar_addr) + E1000_STATUS);
+	val = mmio_read32(dev->bar_addr + E1000_STATUS);
 	val &= E1000_STATUS_SPEED;
 	if (val == E1000_STATUS_SPEED_10)
 		printk("Link speed: 10 Mb/s\n");
@@ -107,7 +108,7 @@ static void eth_set_speed(struct eth_device* dev)
 }
 
 
-static void eth_print_mac_addr(struct eth_device* dev)
+static void eth_print_mac_addr(struct eth_device *dev)
 {
 	if (mmio_read32(dev->bar_addr + E1000_RAH) & E1000_RAH_AV) {
 		*(u32 *)dev->mac = mmio_read32(dev->bar_addr + E1000_RAL);
@@ -121,14 +122,14 @@ static void eth_print_mac_addr(struct eth_device* dev)
 }
 
 
-static void eth_setup_rx(struct eth_device* dev)
+static void eth_setup_rx(struct eth_device *dev)
 {
 	u32 val;
 
 	// Disable all RX queues (TODO: write 0 ?)
 	for (int i=0; i< NUM_QUEUES; ++i){
-		mmio_write32((dev->bar_addr) + E1000_RXDCTL(i),
-			mmio_read32((dev->bar_addr) + E1000_RXDCTL(i)) & ~(E1000_RXDCTL_ENABLE));
+		mmio_write32(dev->bar_addr + E1000_RXDCTL(i),
+			mmio_read32(dev->bar_addr + E1000_RXDCTL(i)) & ~(E1000_RXDCTL_ENABLE));
 	}
 
 	// Make the ring point to the buffer
@@ -153,23 +154,23 @@ static void eth_setup_rx(struct eth_device* dev)
 }
 
 
-static void eth_setup_tx(struct eth_device* dev)
+static void eth_setup_tx(struct eth_device *dev)
 {
 	// Disable all TX queues (TODO: write 0 ?)
 	for (int i=0; i< NUM_QUEUES; ++i){
-		mmio_write32((dev->bar_addr) + E1000_TXDCTL(i),
-			mmio_read32((dev->bar_addr) + E1000_TXDCTL(i)) & ~(E1000_TXDCTL_ENABLE));
+		mmio_write32(dev->bar_addr + E1000_TXDCTL(i),
+			mmio_read32(dev->bar_addr + E1000_TXDCTL(i)) & ~(E1000_TXDCTL_ENABLE));
 	}
 
-	mmio_write32((dev->bar_addr) + E1000_TDBAL(0), (unsigned long)&tx_ring);
-	mmio_write32((dev->bar_addr) + E1000_TDBAH(0), 0);
-	mmio_write32((dev->bar_addr) + E1000_TDLEN(0), sizeof(tx_ring));
-	mmio_write32((dev->bar_addr) + E1000_TDH(0), 0);
-	mmio_write32((dev->bar_addr) + E1000_TDT(0), 0);
-	mmio_write32((dev->bar_addr) + E1000_TXDCTL(0),
+	mmio_write32(dev->bar_addr + E1000_TDBAL(0), (unsigned long)&tx_ring);
+	mmio_write32(dev->bar_addr + E1000_TDBAH(0), 0);
+	mmio_write32(dev->bar_addr + E1000_TDLEN(0), sizeof(tx_ring));
+	mmio_write32(dev->bar_addr + E1000_TDH(0), 0);
+	mmio_write32(dev->bar_addr + E1000_TDT(0), 0);
+	mmio_write32(dev->bar_addr + E1000_TXDCTL(0),
 		mmio_read32((dev->bar_addr)  + E1000_TXDCTL(0)) | E1000_TXDCTL_ENABLE);
 
-	mmio_write32((dev->bar_addr) + E1000_TCTL, mmio_read32((dev->bar_addr) + E1000_TCTL) |
+	mmio_write32(dev->bar_addr + E1000_TCTL, mmio_read32(dev->bar_addr + E1000_TCTL) |
 		E1000_TCTL_EN | E1000_TCTL_PSP | E1000_TCTL_CT_IEEE);
 
 /* 	mmio_write32(mmiobar + E1000_REG_TIPG, */
@@ -180,6 +181,23 @@ static void eth_setup_tx(struct eth_device* dev)
 }
 
 
+static void send_packet(struct eth_device *dev, void *pkt, unsigned int size)
+{
+	unsigned int idx = tx_idx;
+
+	memset(&tx_ring[idx], 0, sizeof(union e1000_adv_tx_desc));
+	tx_ring[idx].read.buffer_addr = (unsigned long)pkt;
+	tx_ring[idx].read.cmd_type_len = size;
+/* 	tx_ring[idx].rs = 1; */
+/* 	tx_ring[idx].ifcs = 1; */
+/* 	tx_ring[idx].eop = 1; */
+
+	tx_idx = (tx_idx + 1) % TX_DESCR_NB;
+	mmio_write32(dev->bar_addr + E1000_TDT(0), tx_idx);
+
+/* 	while (!tx_ring[idx].dd) */
+/* 		cpu_relax(); */
+}
 
 
 
@@ -206,10 +224,11 @@ void inmate_main(void)
 	printk("Size = %ld\n", sizeof(union e1000_adv_rx_desc));
 	printk("Size = %ld\n", sizeof(rx_ring));
 
-/* 	memcpy(tx_packet.src, mac, sizeof(tx_packet.src)); */
-/* 	memset(tx_packet.dst, 0xff, sizeof(tx_packet.dst)); */
-/* 	tx_packet.type = FRAME_TYPE_ANNOUNCE; */
-/* 	send_packet(&tx_packet, sizeof(tx_packet)); */
+	memcpy(tx_packet.src, dev.mac, sizeof(tx_packet.src));
+	memset(tx_packet.dst, 0xff, sizeof(tx_packet.dst));
+	tx_packet.type = FRAME_TYPE_ANNOUNCE;
+	for (int i = 0; i < 10; ++i)
+		send_packet(&dev, &tx_packet, sizeof(tx_packet));
 
 error:
 	asm volatile("hlt");

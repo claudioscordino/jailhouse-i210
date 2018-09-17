@@ -111,6 +111,7 @@ struct eth_device {
 };
 
 
+#define FRAME_TYPE_ANNOUNCE	0x004a
 struct eth_header {
 	u8	dst[6];
 	u8	src[6];
