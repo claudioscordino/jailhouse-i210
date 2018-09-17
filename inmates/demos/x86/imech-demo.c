@@ -107,10 +107,8 @@ static void eth_set_speed(struct eth_device* dev)
 }
 
 
-static void eth_setup(struct eth_device* dev)
+static void eth_print_mac_addr(struct eth_device* dev)
 {
-	u32 val;
-
 	if (mmio_read32(dev->bar_addr + E1000_RAH) & E1000_RAH_AV) {
 		u8 mac[6];
 		*(u32 *)mac = mmio_read32(dev->bar_addr + E1000_RAL);
@@ -121,9 +119,14 @@ static void eth_setup(struct eth_device* dev)
 	} else {
 		printk("ERROR: need to get MAC through EERD\n");
 	}
+}
 
 
-	// Disable all queues (TODO: write 0 ?)
+static void eth_setup_rx(struct eth_device* dev)
+{
+	u32 val;
+
+	// Disable all RX queues (TODO: write 0 ?)
 	for (int i=0; i< NUM_QUEUES; ++i){
 		mmio_write32((dev->bar_addr) + E1000_RXDCTL(i),
 			mmio_read32((dev->bar_addr) + E1000_RXDCTL(i)) & ~(E1000_RXDCTL_ENABLE));
@@ -144,10 +147,37 @@ static void eth_setup(struct eth_device* dev)
 
 	val = mmio_read32(dev->bar_addr + E1000_RCTL);
 	val &= ~(E1000_RCTL_BAM | E1000_RCTL_BSIZE);
-	val |= (E1000_RCTL_EN | E1000_RCTL_SECRC | E1000_RCTL_BSIZE_2048);
+	val |= (E1000_RCTL_RXEN | E1000_RCTL_SECRC | E1000_RCTL_BSIZE_2048);
 	mmio_write32(dev->bar_addr + E1000_RCTL, val);
 
 	mmio_write32(dev->bar_addr + E1000_RDT(0), RX_DESCR_NB - 1);
+}
+
+
+static void eth_setup_tx(struct eth_device* dev)
+{
+	// Disable all TX queues (TODO: write 0 ?)
+	for (int i=0; i< NUM_QUEUES; ++i){
+		mmio_write32((dev->bar_addr) + E1000_TXDCTL(i),
+			mmio_read32((dev->bar_addr) + E1000_TXDCTL(i)) & ~(E1000_TXDCTL_ENABLE));
+	}
+
+	mmio_write32((dev->bar_addr) + E1000_TDBAL(0), (unsigned long)&tx_ring);
+	mmio_write32((dev->bar_addr) + E1000_TDBAH(0), 0);
+	mmio_write32((dev->bar_addr) + E1000_TDLEN(0), sizeof(tx_ring));
+	mmio_write32((dev->bar_addr) + E1000_TDH(0), 0);
+	mmio_write32((dev->bar_addr) + E1000_TDT(0), 0);
+	mmio_write32((dev->bar_addr) + E1000_TXDCTL(0),
+		mmio_read32((dev->bar_addr)  + E1000_TXDCTL(0)) | E1000_TXDCTL_ENABLE);
+
+	mmio_write32((dev->bar_addr) + E1000_TCTL, mmio_read32((dev->bar_addr) + E1000_TCTL) |
+		E1000_TCTL_EN | E1000_TCTL_PSP | E1000_TCTL_CT_IEEE);
+
+/* 	mmio_write32(mmiobar + E1000_REG_TIPG, */
+/* 		     E1000_TIPG_IPGT_DEF | E1000_TIPG_IPGR1_DEF | */
+/* 		     E1000_TIPG_IPGR2_DEF); */
+
+
 }
 
 
@@ -168,7 +198,9 @@ void inmate_main(void)
 
 	print_regs(&dev);
 	eth_set_speed(&dev);
-	eth_setup(&dev);
+	eth_print_mac_addr(&dev);
+	eth_setup_rx(&dev);
+	eth_setup_tx(&dev);
 	print_regs(&dev);
 
 	printk("Size = %ld\n", sizeof(union e1000_adv_rx_desc));
