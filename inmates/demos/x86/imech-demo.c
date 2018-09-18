@@ -63,8 +63,8 @@ static void print_regs(struct eth_device* dev)
 	printk("STATUS:\t%x\n", mmio_read32(dev->bar_addr + E1000_STATUS));
 	printk("TCTL:\t%x\n", mmio_read32(dev->bar_addr + E1000_TCTL));
 	printk("TIPG:\t%x\n", mmio_read32(dev->bar_addr + E1000_TIPG));
-	printk("RAL:\t%x\n", mmio_read32(dev->bar_addr + E1000_RAL));
-	printk("RAH:\t%x\n", mmio_read32(dev->bar_addr + E1000_RAH));
+/* 	printk("RAL:\t%x\n", mmio_read32(dev->bar_addr + E1000_RAL)); */
+/* 	printk("RAH:\t%x\n", mmio_read32(dev->bar_addr + E1000_RAH)); */
 
 	for (int i = 0; i < 4; ++i)
 		print_ring_regs(dev, i);
@@ -116,11 +116,12 @@ static void eth_set_speed(struct eth_device *dev)
 {
 	u32 val;
 
-	if (dev->speed == 100) {
-		// Bypass all speed detection mechanisms.
-		mmio_write32(dev->bar_addr + E1000_CTRL_EXT,
-			mmio_read32(dev->bar_addr + E1000_CTRL_EXT) | E1000_CTRL_EXT_BYPS);
-	}
+	val = mmio_read32(dev->bar_addr + E1000_CTRL_EXT);
+	// Disable low power modes
+	val &= ~(E1000_CTRL_EXT_SD_LP | E1000_CTRL_EXT_PHY_LP);
+	if (dev->speed == 100)
+		val |= E1000_CTRL_EXT_BYPS; // Bypass speed detection
+	mmio_write32(dev->bar_addr + E1000_CTRL_EXT, val);
 
 	val = mmio_read32(dev->bar_addr + E1000_CTRL);
 	printk("CTRL (before changing speed):\t%x\n", val);
@@ -187,12 +188,14 @@ static void eth_setup_rx(struct eth_device *dev)
 	for (int i = 0; i < RX_DESCR_NB; ++i)
 		rx_ring[i].read.pkt_addr = (u64) &buffer [i * RX_BUFFER_SIZE];
 
-	// Enable only the first queue
+	// These must be programmed when the queue is still disabled:
         mmio_write32(dev->bar_addr + E1000_RDBAL(0), (unsigned long)&rx_ring);
         mmio_write32(dev->bar_addr + E1000_RDBAH(0), 0);
         mmio_write32(dev->bar_addr + E1000_RDLEN(0), sizeof(rx_ring));
         mmio_write32(dev->bar_addr + E1000_RDH(0), 0);
         mmio_write32(dev->bar_addr + E1000_RDT(0), 0); // Overwritten below
+
+	// Enable only the first queue
         mmio_write32(dev->bar_addr + E1000_RXDCTL(0),
                   	mmio_read32(dev->bar_addr + E1000_RXDCTL(0)) | E1000_RXDCTL_ENABLE);
 
@@ -213,11 +216,14 @@ static void eth_setup_tx(struct eth_device *dev)
 			mmio_read32(dev->bar_addr + E1000_TXDCTL(i)) & ~(E1000_TXDCTL_ENABLE));
 	}
 
+	// These must be programmed when the queue is still disabled:
 	mmio_write32(dev->bar_addr + E1000_TDBAL(0), (unsigned long)&tx_ring);
 	mmio_write32(dev->bar_addr + E1000_TDBAH(0), 0);
 	mmio_write32(dev->bar_addr + E1000_TDLEN(0), sizeof(tx_ring));
 	mmio_write32(dev->bar_addr + E1000_TDH(0), 0);
 	mmio_write32(dev->bar_addr + E1000_TDT(0), 0);
+
+	// Enable only the first queue
 	mmio_write32(dev->bar_addr + E1000_TXDCTL(0),
 		mmio_read32((dev->bar_addr)  + E1000_TXDCTL(0)) | E1000_TXDCTL_ENABLE);
 
@@ -257,7 +263,7 @@ void inmate_main(void)
 	struct eth_header tx_packet;
 	struct eth_device dev;
 	int ret;
-	dev.speed = 1000;
+	dev.speed = 100;
 
 	printk("Starting...\n");
 
@@ -277,7 +283,7 @@ void inmate_main(void)
 
 	memcpy(tx_packet.src, dev.mac, sizeof(tx_packet.src));
 	memset(tx_packet.dst, 0xff, sizeof(tx_packet.dst));
-	tx_packet.type = FRAME_TYPE_PING;
+	tx_packet.type = FRAME_TYPE_ANNOUNCE;
 	for (int i = 0; i < 10000; ++i)
 		send_packet(&dev, &tx_packet, sizeof(tx_packet));
 	printk("Finished!\n");
