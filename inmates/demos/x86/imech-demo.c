@@ -40,21 +40,31 @@ static unsigned int rx_idx, tx_idx;
 
 static void print_ring_regs(struct eth_device *dev, int i)
 {
-	u32 val;
-	val = mmio_read32(dev->bar_addr + E1000_RXDCTL(i));
-	printk("RXDCTL(%d): %x\n", i, val);
+	printk("RDBAL(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_RDBAL(i)));
+	printk("RDBAH(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_RDBAH(i)));
+	printk("RDLEN(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_RDLEN(i)));
+	printk("RDH(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_RDH(i)));
+	printk("RDT(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_RDT(i)));
+	printk("RXDCTL(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_RXDCTL(i)));
+
+	printk("TDBAL(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_TDBAL(i)));
+	printk("TDBAH(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_TDBAH(i)));
+	printk("TDLEN(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_TDLEN(i)));
+	printk("TDH(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_TDH(i)));
+	printk("TDT(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_TDT(i)));
+	printk("TXDCTL(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_TXDCTL(i)));
 }
 
 static void print_regs(struct eth_device* dev)
 {
-	u32 val;
 	printk("~~~~~~~~~~~~~~~~~~~~~~~\n");
-	val = mmio_read32(dev->bar_addr + E1000_RCTL);
-	printk("RCTL:\t%x\n", val);
-	val = mmio_read32(dev->bar_addr + E1000_CTRL);
-	printk("CTRL:\t%x\n", val);
-	val = mmio_read32(dev->bar_addr + E1000_STATUS);
-	printk("STATUS:\t%x\n", val);
+	printk("CTRL:\t%x\n", mmio_read32(dev->bar_addr + E1000_CTRL));
+	printk("CTRL_EXT:\t%x\n", mmio_read32(dev->bar_addr + E1000_CTRL_EXT));
+	printk("STATUS:\t%x\n", mmio_read32(dev->bar_addr + E1000_STATUS));
+	printk("TCTL:\t%x\n", mmio_read32(dev->bar_addr + E1000_TCTL));
+	printk("TIPG:\t%x\n", mmio_read32(dev->bar_addr + E1000_TIPG));
+	printk("RAL:\t%x\n", mmio_read32(dev->bar_addr + E1000_RAL));
+	printk("RAH:\t%x\n", mmio_read32(dev->bar_addr + E1000_RAH));
 
 	for (int i = 0; i < 4; ++i)
 		print_ring_regs(dev, i);
