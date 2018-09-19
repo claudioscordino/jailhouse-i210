@@ -76,6 +76,8 @@
 	#define E1000_MDIC_PHY_CTRL		0
 	#define E1000_MDIC_PHY_CTRL_POWER_DOWN	(1 << 11)
 
+#ifdef ADVANCED
+
 // Receive Descriptor - Advanced
 // From linux/drivers/net/ethernet/intel/igb/e1000_82575.h
 union e1000_adv_rx_desc {
@@ -120,6 +122,46 @@ union e1000_adv_tx_desc {
         } wb;
 };
 
+#else // ADVANCED
+
+struct e1000_rxd {
+	u64	addr;
+	u16	len;
+	u16	crc;
+	u8	dd:1,
+		eop:1,
+		ixsm:1,
+		vp:1,
+		udpcs:1,
+		tcpcs:1,
+		ipcs:1,
+		pif:1;
+	u8	errors;
+	u16	vlan_tag;
+} __attribute__((packed));
+
+struct e1000_txd {
+	u64	addr;
+	u16	len;
+	u8	cso;
+	u8	eop:1,
+		ifcs:1,
+		ic:1,
+		rs:1,
+		rps:1,
+		dext:1,
+		vle:1,
+		ide:1;
+	u8	dd:1,
+		ec:1,
+		lc:1,
+		tu:1,
+		rsv:4;
+	u8	css;
+	u16	special;
+} __attribute__((packed));
+
+#endif // ADVANCED
 
 struct eth_device {
 	void	*bar_addr;

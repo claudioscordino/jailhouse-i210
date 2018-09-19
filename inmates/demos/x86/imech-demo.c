@@ -33,8 +33,13 @@ static void mdic_write(struct eth_device *dev, unsigned int reg, u16 val)
 
 
 static u8 buffer[RX_DESCR_NB * RX_BUFFER_SIZE];
+#ifdef ADVANCED
 static union e1000_adv_rx_desc rx_ring [RX_DESCR_NB] __attribute__((aligned(128)));
 static union e1000_adv_tx_desc tx_ring [TX_DESCR_NB] __attribute__((aligned(128)));
+#else
+static struct e1000_rxd rx_ring[RX_DESCR_NB] __attribute__((aligned(128)));
+static struct e1000_txd tx_ring[TX_DESCR_NB] __attribute__((aligned(128)));
+#endif
 static unsigned int rx_idx, tx_idx;
 
 
@@ -186,7 +191,11 @@ static void eth_setup_rx(struct eth_device *dev)
 
 	// Make the ring point to the buffer
 	for (int i = 0; i < RX_DESCR_NB; ++i)
+#ifdef ADVANCED
 		rx_ring[i].read.pkt_addr = (u64) &buffer [i * RX_BUFFER_SIZE];
+#else
+		rx_ring[i].addr = (u64) &buffer [i * RX_BUFFER_SIZE];
+#endif
 
 	// These must be programmed when the queue is still disabled:
         mmio_write32(dev->bar_addr + E1000_RDBAL(0), (unsigned long)&rx_ring);
@@ -230,9 +239,9 @@ static void eth_setup_tx(struct eth_device *dev)
 	mmio_write32(dev->bar_addr + E1000_TCTL, mmio_read32(dev->bar_addr + E1000_TCTL) |
 		E1000_TCTL_EN | E1000_TCTL_PSP | E1000_TCTL_CT_IEEE);
 
-	mmio_write32(dev->bar_addr + E1000_TIPG,
-		     E1000_TIPG_IPGT_DEF | E1000_TIPG_IPGR1_DEF |
-		     E1000_TIPG_IPGR2_DEF);
+/* 	mmio_write32(dev->bar_addr + E1000_TIPG, */
+/* 		     E1000_TIPG_IPGT_DEF | E1000_TIPG_IPGR1_DEF | */
+/* 		     E1000_TIPG_IPGR2_DEF); */
 
 
 }
@@ -241,19 +250,26 @@ static void eth_setup_tx(struct eth_device *dev)
 static void send_packet(struct eth_device *dev, void *pkt, unsigned int size)
 {
 	unsigned int idx = tx_idx;
-
+#ifdef ADVANCED
 	memset(&tx_ring[idx], 0, sizeof(union e1000_adv_tx_desc));
 	tx_ring[idx].read.buffer_addr = (unsigned long)pkt;
 	tx_ring[idx].read.cmd_type_len = size;
-/* 	tx_ring[idx].rs = 1; */
-/* 	tx_ring[idx].ifcs = 1; */
-/* 	tx_ring[idx].eop = 1; */
+#else
+	memset(&tx_ring[idx], 0, sizeof(struct e1000_txd));
+	tx_ring[idx].addr = (unsigned long)pkt;
+	tx_ring[idx].len = size;
+	tx_ring[idx].rs = 1;
+	tx_ring[idx].ifcs = 1;
+	tx_ring[idx].eop = 1;
+#endif
 
 	tx_idx = (tx_idx + 1) % TX_DESCR_NB;
 	mmio_write32(dev->bar_addr + E1000_TDT(0), tx_idx);
 
-/* 	while (!tx_ring[idx].dd) */
-/* 		cpu_relax(); */
+#ifndef ADVANCED
+	while (!tx_ring[idx].dd)
+		cpu_relax();
+#endif
 }
 
 
@@ -263,7 +279,7 @@ void inmate_main(void)
 	struct eth_header tx_packet;
 	struct eth_device dev;
 	int ret;
-	dev.speed = 100;
+	dev.speed = 1000;
 
 	printk("Starting...\n");
 
@@ -278,7 +294,11 @@ void inmate_main(void)
 	eth_setup_tx(&dev);
 	print_regs(&dev);
 
+#ifdef ADVANCED
 	printk("Size = %ld\n", sizeof(union e1000_adv_rx_desc));
+#else
+	printk("Size = %ld\n", sizeof(struct e1000_rxd));
+#endif
 	printk("Size = %ld\n", sizeof(rx_ring));
 
 	memcpy(tx_packet.src, dev.mac, sizeof(tx_packet.src));
