@@ -76,54 +76,6 @@
 	#define E1000_MDIC_PHY_CTRL		0
 	#define E1000_MDIC_PHY_CTRL_POWER_DOWN	(1 << 11)
 
-#ifdef ADVANCED
-
-// Receive Descriptor - Advanced
-// From linux/drivers/net/ethernet/intel/igb/e1000_82575.h
-union e1000_adv_rx_desc {
-        struct {
-                u64 pkt_addr;             // Packet buffer address
-                u64 hdr_addr;             // Header buffer address
-        } read;
-        struct {
-                struct {
-                        struct {
-                                u16 pkt_info;   // RSS type, Packet type
-                                u16 hdr_info;   // Split Head, buf len
-                        } lo_dword;
-                        union {
-                                u32 rss;          // RSS Hash
-                                struct {
-                                        u16 ip_id;    // IP id
-                                        u16 csum;     // Packet Checksum
-                                } csum_ip;
-                        } hi_dword;
-                } lower;
-                struct {
-                        u32 status_error;     // ext status/error
-                        u16 length;           // Packet length
-                        u16 vlan;             // VLAN tag
-                } upper;
-        } wb;  // writeback
-};
-
-// Transmit Descriptor - Advanced
-// From linux/drivers/net/ethernet/intel/igb/e1000_82575.h
-union e1000_adv_tx_desc {
-        struct {
-                u64 buffer_addr;    // Address of descriptor's data buf
-                u32 cmd_type_len;
-                u32 olinfo_status;
-        } read;
-        struct {
-                u64 rsvd;       // Reserved
-                u32 nxtseq_seed;
-                u32 status;
-        } wb;
-};
-
-#else // ADVANCED
-
 struct e1000_rxd {
 	u64	addr;
 	u16	len;
@@ -160,8 +112,6 @@ struct e1000_txd {
 	u8	css;
 	u16	special;
 } __attribute__((packed));
-
-#endif // ADVANCED
 
 struct eth_device {
 	void	*bar_addr;
