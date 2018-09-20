@@ -1,14 +1,15 @@
-#ifndef INMATE_ETH_H
-#define INMATE_ETH_H
+#ifndef I210_H
+#define I210_H
 
 // ============================ Hardware =======================================
 /* Taken using "sudo lspci -nn" */
 #define ETH_VENDORID		0x8086
 #define ETH_DEVICEID		0x1533
 
+#define NUM_QUEUES		4 // i210 has 4 rx and 4 tx queues
+
 // TODO: check
 #define ETH_IRQ_VECTOR		42
-#define NUM_QUEUES		4 // i210 has 4 rx and 4 tx queues
 
 // ============================ Data structures ================================
 #define RX_BUFFER_SIZE          2048	// This must be written into RCTL.BSIZE
@@ -76,7 +77,7 @@
 	#define E1000_MDIC_PHY_CTRL		0
 	#define E1000_MDIC_PHY_CTRL_POWER_DOWN	(1 << 11)
 
-struct e1000_rxd {
+struct rxd {
 	u64	addr;
 	u16	len;
 	u16	crc;
@@ -92,7 +93,7 @@ struct e1000_rxd {
 	u16	vlan_tag;
 } __attribute__((packed));
 
-struct e1000_txd {
+struct txd {
 	u64	addr;
 	u16	len;
 	u8	cso;
@@ -120,10 +121,7 @@ struct eth_device {
 };
 
 
-#define FRAME_TYPE_ANNOUNCE	0x004a
-#define FRAME_TYPE_TARGET_ROLE	0x014a
-#define FRAME_TYPE_PING		0x024a
-#define FRAME_TYPE_PONG		0x034a
+#define ETH_FRAME_TYPE_ANNOUNCE	0x004a
 struct eth_header {
 	u8	dst[6];
 	u8	src[6];
@@ -136,4 +134,4 @@ struct eth_header {
 #define print(...)          printk("Ethernet: " __VA_ARGS__)
 
 
-#endif /* INMATE_ETH_H */
+#endif // I210_H

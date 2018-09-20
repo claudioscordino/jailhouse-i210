@@ -4,7 +4,7 @@
  */
 
 #include <inmate.h>
-#include "imech-demo.h"
+#include "i210.h"
 
 static u16 mdic_read(struct eth_device *dev, unsigned int reg)
 {
@@ -33,8 +33,8 @@ static void mdic_write(struct eth_device *dev, unsigned int reg, u16 val)
 
 
 static u8 buffer[RX_DESCR_NB * RX_BUFFER_SIZE];
-static struct e1000_rxd rx_ring[RX_DESCR_NB] __attribute__((aligned(128)));
-static struct e1000_txd tx_ring[TX_DESCR_NB] __attribute__((aligned(128)));
+static struct rxd rx_ring[RX_DESCR_NB] __attribute__((aligned(128)));
+static struct txd tx_ring[TX_DESCR_NB] __attribute__((aligned(128)));
 static unsigned int rx_idx, tx_idx;
 
 
@@ -241,7 +241,7 @@ static void eth_setup_tx(struct eth_device *dev)
 static void send_packet(struct eth_device *dev, void *pkt, unsigned int size)
 {
 	unsigned int idx = tx_idx;
-	memset(&tx_ring[idx], 0, sizeof(struct e1000_txd));
+	memset(&tx_ring[idx], 0, sizeof(struct txd));
 	tx_ring[idx].addr = (unsigned long)pkt;
 	tx_ring[idx].len = size;
 	tx_ring[idx].rs = 1;
@@ -277,12 +277,12 @@ void inmate_main(void)
 	eth_setup_tx(&dev);
 	print_regs(&dev);
 
-	printk("Size = %ld\n", sizeof(struct e1000_rxd));
+	printk("Size = %ld\n", sizeof(struct rxd));
 	printk("Size = %ld\n", sizeof(rx_ring));
 
 	memcpy(tx_packet.src, dev.mac, sizeof(tx_packet.src));
 	memset(tx_packet.dst, 0xff, sizeof(tx_packet.dst));
-	tx_packet.type = FRAME_TYPE_ANNOUNCE;
+	tx_packet.type = ETH_FRAME_TYPE_ANNOUNCE;
 	for (int i = 0; i < 10000; ++i)
 		send_packet(&dev, &tx_packet, sizeof(tx_packet));
 	printk("Finished!\n");
