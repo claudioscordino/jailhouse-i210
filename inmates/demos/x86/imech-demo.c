@@ -127,7 +127,7 @@ static void eth_set_speed(struct eth_device *dev)
 	printk("CTRL (before changing speed):\t%x\n", val);
         val |= E1000_CTRL_SLU; // Set link up
 	if (dev->speed == 100) {
-        	val &= ~(E1000_CTRL_SPEED);
+        	val &= ~(E1000_CTRL_SPEED_MSK);
         	val |= E1000_CTRL_SPEED_100; // Set link to 100 Mp/s (TODO: set also PHY ?)
 		val |= E1000_CTRL_FRCSPD; // Force speed
 	} else {
@@ -150,7 +150,7 @@ static void eth_set_speed(struct eth_device *dev)
 
 	// Check link speed
 	val = mmio_read32(dev->bar_addr + E1000_STATUS);
-	val &= E1000_STATUS_SPEED;
+	val &= E1000_STATUS_SPEED_MSK;
 	if (val == E1000_STATUS_SPEED_10)
 		printk("Link speed: 10 Mb/s\n");
 	else if (val == E1000_STATUS_SPEED_100)

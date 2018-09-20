@@ -19,15 +19,17 @@
 
 // ============================ Registers ======================================
 #define E1000_CTRL	0x00000	// Device Control - RW
+	#define E1000_CTRL_FD		(1 << 0)	// Full-Duplex
 	#define E1000_CTRL_SLU		(1 << 6)	// Set link up (Force Link)
-	#define E1000_CTRL_SPEED	(3 << 8)	// Link speed mask
+	#define E1000_CTRL_SPEED_MSK	(3 << 8)	// Link speed mask
 	#define E1000_CTRL_SPEED_100	(1 << 8)	// 100 Mb/s speed
 	#define E1000_CTRL_FRCSPD	(1 << 11)	// Force Speed
+	#define E1000_CTRL_FRCDPLX	(1 << 12)	// Force Duplex
 	#define E1000_CTRL_RST		(1 << 26)	// Reset
 #define E1000_STATUS	0x00008	// Device Status - RO
 	#define E1000_STATUS_FD		(1 << 0)	// Full Duplex (TODO: check if needed)
 	#define E1000_STATUS_LU		(1 << 1)	// Link up
-	#define E1000_STATUS_SPEED	(3 << 6)	// Link speed
+	#define E1000_STATUS_SPEED_MSK	(3 << 6)	// Link speed mask
 	#define E1000_STATUS_SPEED_10	(0 << 6)	// Speed 10  Mb/s
 	#define E1000_STATUS_SPEED_100	(1 << 6)	// Speed 100 Mb/s
 #define E1000_CTRL_EXT	0x00018	// Extended Device Control - RW
@@ -48,6 +50,17 @@
 	#define E1000_TIPG_IPGT_DEF	(10 << 0)
 	#define E1000_TIPG_IPGR1_DEF	(10 << 10)
 	#define E1000_TIPG_IPGR2_DEF	(10 << 20)
+#define E1000_PCS_LCTL	0x4208	// PCS Link Control
+	#define E1000_PCS_LCTL_FSV_MSK	(3 << 1)	// Forced Speed Value mask
+	#define E1000_PCS_LCTL_FSV_100	(1 << 1)	// Forced Speed 100 Mb/s
+	#define E1000_PCS_LCTL_FDV	(1 << 3)	// Forced Duplex Value
+	#define E1000_PCS_LCTL_FSD	(1 << 4)	// Force Speed and Duplex
+#define E1000_PCS_LSTS	0x420C	// PCS Link Status
+	#define E1000_PCS_LSTS_LINK	(1 << 0)	// Link OK
+	#define E1000_PCS_LSTS_SPEED_MSK (3 << 1)	// Speed mask
+	#define E1000_PCS_LSTS_SPEED_10	 (0 << 1)	// 10 Mb/s
+	#define E1000_PCS_LSTS_SPEED_100 (1 << 1)	// 100 Mb/s
+	#define E1000_PCS_LSTS_DUPLEX	 (1 << 3)
 
 #define E1000_RAL	0x05400
 #define E1000_RAH	0x05404
@@ -76,6 +89,8 @@
 	#define E1000_MDIC_READY	(0x1 << 28)
 	#define E1000_MDIC_PHY_CTRL		0
 	#define E1000_MDIC_PHY_CTRL_POWER_DOWN	(1 << 11)
+	#define E1000_MDIC_PHY_SPEED_MSK	((1 << 6)|(1 << 13))
+	#define E1000_MDIC_PHY_SPEED_100	(1 << 6)
 
 struct rxd {
 	u64	addr;
