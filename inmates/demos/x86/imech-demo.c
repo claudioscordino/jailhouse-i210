@@ -123,6 +123,15 @@ static void eth_set_speed(struct eth_device *dev)
 		val |= E1000_CTRL_EXT_BYPS; // Bypass speed detection
 	mmio_write32(dev->bar_addr + E1000_CTRL_EXT, val);
 
+	if (dev->speed == 100){
+		val = mmio_read32(dev->bar_addr + E1000_PCS_LCTL);
+		val &= ~(E1000_PCS_LCTL_FSV_MSK);
+		val |= E1000_PCS_LCTL_FSV_100;
+		val |= E1000_PCS_LCTL_FDV;
+		val |= E1000_PCS_LCTL_FSD;
+		mmio_write32(dev->bar_addr + E1000_PCS_LCTL, val);
+	}
+
 	val = mmio_read32(dev->bar_addr + E1000_CTRL);
 	printk("CTRL (before changing speed):\t%x\n", val);
         val |= E1000_CTRL_SLU; // Set link up
@@ -139,9 +148,14 @@ static void eth_set_speed(struct eth_device *dev)
 	val = mmio_read32(dev->bar_addr + E1000_CTRL);
 	printk("CTRL (after changing speed):\t%x\n", val);
 
-	/* power up again in case the previous user turned it off */
-	mdic_write(dev, E1000_MDIC_PHY_CTRL,
-		  mdic_read(dev, E1000_MDIC_PHY_CTRL) & (~E1000_MDIC_PHY_CTRL_POWER_DOWN));
+	val = mdic_read(dev, E1000_MDIC_CCR);
+	if (dev->speed == 100) {
+		val &= ~(E1000_MDIC_CCR_SPEED_MSK);
+		val |= E1000_MDIC_CCR_SPEED_100;
+	}
+	val &= ~(E1000_MDIC_CCR_POWER_DOWN); // Power up
+	mdic_write(dev, E1000_MDIC_CCR, val);
+
 
 	printk("Waiting for link...");
 	while (!(mmio_read32(dev->bar_addr + E1000_STATUS) & E1000_STATUS_LU))

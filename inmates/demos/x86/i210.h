@@ -83,14 +83,14 @@
 	#define E1000_TXDCTL_ENABLE	(1<<25)
 
 #define E1000_MDIC		0x0020
-	#define E1000_MDIC_REGADD_SHFT	16
-	#define E1000_MDIC_OP_WRITE	(0x1 << 26)
-	#define E1000_MDIC_OP_READ	(0x2 << 26)
-	#define E1000_MDIC_READY	(0x1 << 28)
-	#define E1000_MDIC_PHY_CTRL		0
-	#define E1000_MDIC_PHY_CTRL_POWER_DOWN	(1 << 11)
-	#define E1000_MDIC_PHY_SPEED_MSK	((1 << 6)|(1 << 13))
-	#define E1000_MDIC_PHY_SPEED_100	(1 << 6)
+	#define E1000_MDIC_REGADD_SHFT		16
+	#define E1000_MDIC_OP_WRITE		(0x1 << 26)
+	#define E1000_MDIC_OP_READ		(0x2 << 26)
+	#define E1000_MDIC_READY		(0x1 << 28)
+	#define E1000_MDIC_CCR			0
+	#define E1000_MDIC_CCR_POWER_DOWN	(1 << 11)
+	#define E1000_MDIC_CCR_SPEED_MSK	((1 << 6)|(1 << 13))
+	#define E1000_MDIC_CCR_SPEED_100	(1 << 6)
 
 struct rxd {
 	u64	addr;
