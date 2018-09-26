@@ -99,7 +99,23 @@ static void print_regs(u16 dev)
 		print_ring_regs(dev, i);
 }
 
-static int eth_pci_probe(u16 dev)
+
+static void eth_get_mac_addr(u16 dev)
+{
+	if (mmio_read32(devs[dev].bar_addr + E1000_RAH) & E1000_RAH_AV) {
+		*(u32 *)devs[dev].mac = mmio_read32(devs[dev].bar_addr + E1000_RAL);
+		*(u16 *)&(devs[dev].mac[4]) = mmio_read32(devs[dev].bar_addr + E1000_RAH);
+
+		printk("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+				devs[dev].mac[0], devs[dev].mac[1], devs[dev].mac[2],
+				devs[dev].mac[3], devs[dev].mac[4], devs[dev].mac[5]);
+	} else {
+		printk("ERROR: need to get MAC through EERD\n");
+	}
+}
+
+
+static int eth_discover_devices(void)
 {
         u64 bar;
         int bdf;
@@ -121,10 +137,10 @@ static int eth_pci_probe(u16 dev)
 
         // Map BAR in the virtual memory
 	// TODO: check which one
-        devs[dev].bar_addr = (void *)(bar & ~0xfUL);
+        devs[0].bar_addr = (void *)(bar & ~0xfUL);
 /*         map_range(dev->bar_addr, PAGE_SIZE, MAP_UNCACHED); */
-        map_range(devs[dev].bar_addr, 128 * 1024, MAP_UNCACHED);
-        print("BAR at %p\n", devs[dev].bar_addr);
+        map_range(devs[0].bar_addr, 128 * 1024, MAP_UNCACHED);
+        print("BAR at %p\n", devs[0].bar_addr);
 
         // Set MSI IRQ vector
 	// TODO: missing in e1000
@@ -134,11 +150,13 @@ static int eth_pci_probe(u16 dev)
                         PCI_CMD_MEM | PCI_CMD_MASTER, 2);
 
 	// Software reset
-	mmio_write32(devs[dev].bar_addr + E1000_CTRL, E1000_CTRL_RST);
-	while (!(mmio_read32(devs[dev].bar_addr + E1000_STATUS) | E1000_STATUS_RST_DONE))
+	mmio_write32(devs[0].bar_addr + E1000_CTRL, E1000_CTRL_RST);
+	while (!(mmio_read32(devs[0].bar_addr + E1000_STATUS) | E1000_STATUS_RST_DONE))
 		cpu_relax();
 
         print("PCI device succesfully initialized\n");
+
+	eth_get_mac_addr(0);
         return 0;
 }
 
@@ -197,20 +215,6 @@ static void eth_set_speed(u16 dev, u16 speed)
 	printk(" ok\n");
 }
 
-
-static void eth_discover_mac_addr(u16 dev)
-{
-	if (mmio_read32(devs[dev].bar_addr + E1000_RAH) & E1000_RAH_AV) {
-		*(u32 *)devs[dev].mac = mmio_read32(devs[dev].bar_addr + E1000_RAL);
-		*(u16 *)&(devs[dev].mac[4]) = mmio_read32(devs[dev].bar_addr + E1000_RAH);
-
-		printk("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-				devs[dev].mac[0], devs[dev].mac[1], devs[dev].mac[2],
-				devs[dev].mac[3], devs[dev].mac[4], devs[dev].mac[5]);
-	} else {
-		printk("ERROR: need to get MAC through EERD\n");
-	}
-}
 
 
 static void eth_setup_rx(u16 dev)
@@ -298,17 +302,13 @@ static void send_packet(u16 dev, void *pkt, unsigned int size)
 
 void inmate_main(void)
 {
-	int ret;
-
 	printk("Starting...\n");
 
-	ret = eth_pci_probe(0);
-	if (ret < 0)
+	if (eth_discover_devices() < 0)
 		goto error;
 
 	print_regs(0);
-	eth_set_speed(0, 100);
-	eth_discover_mac_addr(0);
+	eth_set_speed(0, 1000);
 	eth_setup_rx(0);
 	eth_setup_tx(0);
 	print_regs(0);
@@ -316,6 +316,7 @@ void inmate_main(void)
 	printk("Size = %ld\n", sizeof(struct rxd));
 	printk("Size = %ld\n", sizeof(rx_ring));
 
+	// Forge a packet:
 	memcpy(tx_packet.src, devs[0].mac, sizeof(tx_packet.src));
 	memset(tx_packet.dst, 0xff, sizeof(tx_packet.dst));
 	tx_packet.type = ETH_FRAME_TYPE_ANNOUNCE;
