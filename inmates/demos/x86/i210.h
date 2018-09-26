@@ -16,6 +16,7 @@
 #define RX_DESCR_NB		8	// Number of descriptors in the rx queue
 					// It affects RDT
 #define TX_DESCR_NB		8
+#define DEVS_MAX_NB		3	// Maximum number of handled devices
 
 // ============================ Registers ======================================
 #define E1000_CTRL	0x00000	// Device Control - RW
