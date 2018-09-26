@@ -41,19 +41,19 @@ static void mdic_write(u16 dev, unsigned int reg, u16 val)
 
 static void print_ring_regs(u16 dev, int queue)
 {
-	printk("RDBAL(%d): %x\n", queue, mmio_read32(devs[dev].bar_addr + E1000_RDBAL(queue)));
-	printk("RDBAH(%d): %x\n", queue, mmio_read32(devs[dev].bar_addr + E1000_RDBAH(queue)));
-	printk("RDLEN(%d): %x\n", queue, mmio_read32(devs[dev].bar_addr + E1000_RDLEN(queue)));
-	printk("RDH(%d): %x\n", queue, mmio_read32(devs[dev].bar_addr + E1000_RDH(queue)));
-	printk("RDT(%d): %x\n", queue, mmio_read32(devs[dev].bar_addr + E1000_RDT(queue)));
-	printk("RXDCTL(%d): %x\n", queue, mmio_read32(devs[dev].bar_addr + E1000_RXDCTL(queue)));
+	printk("%d.RDBAL(%d): %x\n", dev, queue, mmio_read32(devs[dev].bar_addr + E1000_RDBAL(queue)));
+	printk("%d.RDBAH(%d): %x\n", dev, queue, mmio_read32(devs[dev].bar_addr + E1000_RDBAH(queue)));
+	printk("%d.RDLEN(%d): %x\n", dev, queue, mmio_read32(devs[dev].bar_addr + E1000_RDLEN(queue)));
+	printk("%d.RDH(%d): %x\n", dev, queue, mmio_read32(devs[dev].bar_addr + E1000_RDH(queue)));
+	printk("%d.RDT(%d): %x\n", dev, queue, mmio_read32(devs[dev].bar_addr + E1000_RDT(queue)));
+	printk("%d.RXDCTL(%d): %x\n", dev, queue, mmio_read32(devs[dev].bar_addr + E1000_RXDCTL(queue)));
 
-	printk("TDBAL(%d): %x\n", queue, mmio_read32(devs[dev].bar_addr + E1000_TDBAL(queue)));
-	printk("TDBAH(%d): %x\n", queue, mmio_read32(devs[dev].bar_addr + E1000_TDBAH(queue)));
-	printk("TDLEN(%d): %x\n", queue, mmio_read32(devs[dev].bar_addr + E1000_TDLEN(queue)));
-	printk("TDH(%d): %x\n", queue, mmio_read32(devs[dev].bar_addr + E1000_TDH(queue)));
-	printk("TDT(%d): %x\n", queue, mmio_read32(devs[dev].bar_addr + E1000_TDT(queue)));
-	printk("TXDCTL(%d): %x\n", queue, mmio_read32(devs[dev].bar_addr + E1000_TXDCTL(queue)));
+	printk("%d.TDBAL(%d): %x\n", dev, queue, mmio_read32(devs[dev].bar_addr + E1000_TDBAL(queue)));
+	printk("%d.TDBAH(%d): %x\n", dev, queue, mmio_read32(devs[dev].bar_addr + E1000_TDBAH(queue)));
+	printk("%d.TDLEN(%d): %x\n", dev, queue, mmio_read32(devs[dev].bar_addr + E1000_TDLEN(queue)));
+	printk("%d.TDH(%d): %x\n", dev, queue, mmio_read32(devs[dev].bar_addr + E1000_TDH(queue)));
+	printk("%d.TDT(%d): %x\n", dev, queue, mmio_read32(devs[dev].bar_addr + E1000_TDT(queue)));
+	printk("%d.TXDCTL(%d): %x\n", dev, queue, mmio_read32(devs[dev].bar_addr + E1000_TXDCTL(queue)));
 }
 
 static void print_regs(u16 dev)
@@ -61,11 +61,11 @@ static void print_regs(u16 dev)
 	u32 val;
 
 	printk("~~~~~~~~~~~~~~~~~~~~~~~\n");
-	printk("CTRL:\t%x\n", mmio_read32(devs[dev].bar_addr + E1000_CTRL));
-	printk("CTRL_EXT:\t%x\n", mmio_read32(devs[dev].bar_addr + E1000_CTRL_EXT));
-	printk("STATUS:\t%x\n", mmio_read32(devs[dev].bar_addr + E1000_STATUS));
-	printk("TCTL:\t%x\n", mmio_read32(devs[dev].bar_addr + E1000_TCTL));
-	printk("TIPG:\t%x\n", mmio_read32(devs[dev].bar_addr + E1000_TIPG));
+	printk("%d.CTRL:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_CTRL));
+	printk("%d.CTRL_EXT:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_CTRL_EXT));
+	printk("%d.STATUS:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_STATUS));
+	printk("%d.TCTL:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_TCTL));
+	printk("%d.TIPG:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_TIPG));
 
 	// Check speeds
 	val = mmio_read32(devs[dev].bar_addr + E1000_STATUS);
@@ -106,7 +106,7 @@ static void eth_get_mac_addr(u16 dev)
 		*(u32 *)devs[dev].mac = mmio_read32(devs[dev].bar_addr + E1000_RAL);
 		*(u16 *)&(devs[dev].mac[4]) = mmio_read32(devs[dev].bar_addr + E1000_RAH);
 
-		printk("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+		printk("%d.MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", dev,
 				devs[dev].mac[0], devs[dev].mac[1], devs[dev].mac[2],
 				devs[dev].mac[3], devs[dev].mac[4], devs[dev].mac[5]);
 	} else {
