@@ -6,6 +6,12 @@
 #include <inmate.h>
 #include "i210.h"
 
+static u8 buffer[RX_DESCR_NB * RX_BUFFER_SIZE];
+static struct rxd rx_ring[RX_DESCR_NB] __attribute__((aligned(128)));
+static struct txd tx_ring[TX_DESCR_NB] __attribute__((aligned(128)));
+static unsigned int rx_idx, tx_idx;
+static struct eth_header tx_packet;
+
 static u16 mdic_read(struct eth_device *dev, unsigned int reg)
 {
 	u32 val;
@@ -32,27 +38,21 @@ static void mdic_write(struct eth_device *dev, unsigned int reg, u16 val)
 
 
 
-static u8 buffer[RX_DESCR_NB * RX_BUFFER_SIZE];
-static struct rxd rx_ring[RX_DESCR_NB] __attribute__((aligned(128)));
-static struct txd tx_ring[TX_DESCR_NB] __attribute__((aligned(128)));
-static unsigned int rx_idx, tx_idx;
-
-
-static void print_ring_regs(struct eth_device *dev, int i)
+static void print_ring_regs(struct eth_device *dev, int queue)
 {
-	printk("RDBAL(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_RDBAL(i)));
-	printk("RDBAH(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_RDBAH(i)));
-	printk("RDLEN(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_RDLEN(i)));
-	printk("RDH(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_RDH(i)));
-	printk("RDT(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_RDT(i)));
-	printk("RXDCTL(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_RXDCTL(i)));
+	printk("RDBAL(%d): %x\n", queue, mmio_read32(dev->bar_addr + E1000_RDBAL(queue)));
+	printk("RDBAH(%d): %x\n", queue, mmio_read32(dev->bar_addr + E1000_RDBAH(queue)));
+	printk("RDLEN(%d): %x\n", queue, mmio_read32(dev->bar_addr + E1000_RDLEN(queue)));
+	printk("RDH(%d): %x\n", queue, mmio_read32(dev->bar_addr + E1000_RDH(queue)));
+	printk("RDT(%d): %x\n", queue, mmio_read32(dev->bar_addr + E1000_RDT(queue)));
+	printk("RXDCTL(%d): %x\n", queue, mmio_read32(dev->bar_addr + E1000_RXDCTL(queue)));
 
-	printk("TDBAL(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_TDBAL(i)));
-	printk("TDBAH(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_TDBAH(i)));
-	printk("TDLEN(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_TDLEN(i)));
-	printk("TDH(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_TDH(i)));
-	printk("TDT(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_TDT(i)));
-	printk("TXDCTL(%d): %x\n", i, mmio_read32(dev->bar_addr + E1000_TXDCTL(i)));
+	printk("TDBAL(%d): %x\n", queue, mmio_read32(dev->bar_addr + E1000_TDBAL(queue)));
+	printk("TDBAH(%d): %x\n", queue, mmio_read32(dev->bar_addr + E1000_TDBAH(queue)));
+	printk("TDLEN(%d): %x\n", queue, mmio_read32(dev->bar_addr + E1000_TDLEN(queue)));
+	printk("TDH(%d): %x\n", queue, mmio_read32(dev->bar_addr + E1000_TDH(queue)));
+	printk("TDT(%d): %x\n", queue, mmio_read32(dev->bar_addr + E1000_TDT(queue)));
+	printk("TXDCTL(%d): %x\n", queue, mmio_read32(dev->bar_addr + E1000_TXDCTL(queue)));
 }
 
 static void print_regs(struct eth_device* dev)
@@ -65,9 +65,6 @@ static void print_regs(struct eth_device* dev)
 	printk("STATUS:\t%x\n", mmio_read32(dev->bar_addr + E1000_STATUS));
 	printk("TCTL:\t%x\n", mmio_read32(dev->bar_addr + E1000_TCTL));
 	printk("TIPG:\t%x\n", mmio_read32(dev->bar_addr + E1000_TIPG));
-/* 	printk("RAL:\t%x\n", mmio_read32(dev->bar_addr + E1000_RAL)); */
-/* 	printk("RAH:\t%x\n", mmio_read32(dev->bar_addr + E1000_RAH)); */
-
 
 	// Check speeds
 	val = mmio_read32(dev->bar_addr + E1000_STATUS);
@@ -97,7 +94,7 @@ static void print_regs(struct eth_device* dev)
 	else
 		printk("MDIC Link speed:\t1000 Mb/s\n");
 
-	for (int i = 0; i < 4; ++i)
+	for (int i = 0; i < NUM_QUEUES; ++i)
 		print_ring_regs(dev, i);
 }
 
@@ -200,14 +197,15 @@ static void eth_set_speed(struct eth_device *dev, u16 speed)
 }
 
 
-static void eth_print_mac_addr(struct eth_device *dev)
+static void eth_discover_mac_addr(struct eth_device *dev)
 {
 	if (mmio_read32(dev->bar_addr + E1000_RAH) & E1000_RAH_AV) {
 		*(u32 *)dev->mac = mmio_read32(dev->bar_addr + E1000_RAL);
 		*(u16 *)&(dev->mac[4]) = mmio_read32(dev->bar_addr + E1000_RAH);
 
 		printk("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-				dev->mac[0], dev->mac[1], dev->mac[2], dev->mac[3], dev->mac[4], dev->mac[5]);
+				dev->mac[0], dev->mac[1], dev->mac[2],
+				dev->mac[3], dev->mac[4], dev->mac[5]);
 	} else {
 		printk("ERROR: need to get MAC through EERD\n");
 	}
@@ -219,7 +217,7 @@ static void eth_setup_rx(struct eth_device *dev)
 	u32 val;
 
 	// Disable all RX queues (TODO: write 0 ?)
-	for (int i=0; i< NUM_QUEUES; ++i){
+	for (int i=0; i < NUM_QUEUES; ++i){
 		mmio_write32(dev->bar_addr + E1000_RXDCTL(i),
 			mmio_read32(dev->bar_addr + E1000_RXDCTL(i)) & ~(E1000_RXDCTL_ENABLE));
 	}
@@ -251,7 +249,7 @@ static void eth_setup_rx(struct eth_device *dev)
 static void eth_setup_tx(struct eth_device *dev)
 {
 	// Disable all TX queues (TODO: write 0 ?)
-	for (int i=0; i< NUM_QUEUES; ++i){
+	for (int i=0; i < NUM_QUEUES; ++i){
 		mmio_write32(dev->bar_addr + E1000_TXDCTL(i),
 			mmio_read32(dev->bar_addr + E1000_TXDCTL(i)) & ~(E1000_TXDCTL_ENABLE));
 	}
@@ -299,7 +297,6 @@ static void send_packet(struct eth_device *dev, void *pkt, unsigned int size)
 
 void inmate_main(void)
 {
-	struct eth_header tx_packet;
 	struct eth_device dev;
 	int ret;
 
@@ -310,8 +307,8 @@ void inmate_main(void)
 		goto error;
 
 	print_regs(&dev);
-	eth_set_speed(&dev, 100);
-	eth_print_mac_addr(&dev);
+	eth_set_speed(&dev, 1000);
+	eth_discover_mac_addr(&dev);
 	eth_setup_rx(&dev);
 	eth_setup_tx(&dev);
 	print_regs(&dev);
@@ -327,6 +324,5 @@ void inmate_main(void)
 	printk("Finished!\n");
 
 error:
-/* 	asm volatile("hlt"); */
 	cpu_relax();
 }
