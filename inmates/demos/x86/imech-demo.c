@@ -104,8 +104,10 @@ static int eth_pci_probe(struct eth_device *dev)
         pci_write_config(bdf, PCI_CFG_COMMAND,
                         PCI_CMD_MEM | PCI_CMD_MASTER, 2);
 
+	// Software reset
 	mmio_write32(dev->bar_addr + E1000_CTRL, E1000_CTRL_RST);
-	delay_us(20000);
+	while (!(mmio_read32(dev->bar_addr + E1000_STATUS) | E1000_STATUS_RST_DONE))
+		cpu_relax();
 
         print("PCI device succesfully initialized\n");
         return 0;

@@ -32,6 +32,7 @@
 	#define E1000_STATUS_SPEED_MSK	(3 << 6)	// Link speed mask
 	#define E1000_STATUS_SPEED_10	(0 << 6)	// Speed 10  Mb/s
 	#define E1000_STATUS_SPEED_100	(1 << 6)	// Speed 100 Mb/s
+	#define E1000_STATUS_RST_DONE	(1 << 21)	// Reset done
 #define E1000_CTRL_EXT	0x00018	// Extended Device Control - RW
 	#define E1000_CTRL_EXT_BYPS	(1 << 15)	// Speed Select Bypass
 	#define E1000_CTRL_EXT_SD_LP	(1 << 18)	// SerDes Low Power Enable
