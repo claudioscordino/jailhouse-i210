@@ -57,6 +57,8 @@ static void print_ring_regs(struct eth_device *dev, int i)
 
 static void print_regs(struct eth_device* dev)
 {
+	u32 val;
+
 	printk("~~~~~~~~~~~~~~~~~~~~~~~\n");
 	printk("CTRL:\t%x\n", mmio_read32(dev->bar_addr + E1000_CTRL));
 	printk("CTRL_EXT:\t%x\n", mmio_read32(dev->bar_addr + E1000_CTRL_EXT));
@@ -65,6 +67,35 @@ static void print_regs(struct eth_device* dev)
 	printk("TIPG:\t%x\n", mmio_read32(dev->bar_addr + E1000_TIPG));
 /* 	printk("RAL:\t%x\n", mmio_read32(dev->bar_addr + E1000_RAL)); */
 /* 	printk("RAH:\t%x\n", mmio_read32(dev->bar_addr + E1000_RAH)); */
+
+
+	// Check speeds
+	val = mmio_read32(dev->bar_addr + E1000_STATUS);
+	val &= E1000_STATUS_SPEED_MSK;
+	if (val == E1000_STATUS_SPEED_10)
+		printk("Speed:\t10 Mb/s\n");
+	else if (val == E1000_STATUS_SPEED_100)
+		printk("Speed:\t100 Mb/s\n");
+	else
+		printk("Speed:\t1000 Mb/s\n");
+
+	val = mmio_read32(dev->bar_addr + E1000_PCS_LCTL);
+	val &= E1000_PCS_LCTL_FSV_MSK;
+	if (val == E1000_PCS_LCTL_FSV_10)
+		printk("Link speed:\t10 Mb/s\n");
+	else if (val == E1000_PCS_LCTL_FSV_100)
+		printk("Link speed:\t100 Mb/s\n");
+	else
+		printk("Link speed:\t1000 Mb/s\n");
+
+	val = mdic_read(dev, E1000_MDIC_CCR);
+	val &= E1000_MDIC_CCR_SPEED_MSK;
+	if (val == E1000_MDIC_CCR_SPEED_10)
+		printk("MDIC Link speed:\t10 Mb/s\n");
+	else if (val == E1000_MDIC_CCR_SPEED_100)
+		printk("MDIC Link speed:\t100 Mb/s\n");
+	else
+		printk("MDIC Link speed:\t1000 Mb/s\n");
 
 	for (int i = 0; i < 4; ++i)
 		print_ring_regs(dev, i);
@@ -147,9 +178,6 @@ static void eth_set_speed(struct eth_device *dev)
 	mmio_write32(dev->bar_addr + E1000_CTRL, val);
 	delay_us(20000);
 
-	val = mmio_read32(dev->bar_addr + E1000_CTRL);
-	printk("CTRL (after changing speed):\t%x\n", val);
-
 	val = mdic_read(dev, E1000_MDIC_CCR);
 	if (dev->speed == 100) {
 		val &= ~(E1000_MDIC_CCR_SPEED_MSK);
@@ -163,16 +191,6 @@ static void eth_set_speed(struct eth_device *dev)
 	while (!(mmio_read32(dev->bar_addr + E1000_STATUS) & E1000_STATUS_LU))
 		cpu_relax();
 	printk(" ok\n");
-
-	// Check link speed
-	val = mmio_read32(dev->bar_addr + E1000_STATUS);
-	val &= E1000_STATUS_SPEED_MSK;
-	if (val == E1000_STATUS_SPEED_10)
-		printk("Link speed: 10 Mb/s\n");
-	else if (val == E1000_STATUS_SPEED_100)
-		printk("Link speed: 100 Mb/s\n");
-	else
-		printk("Link speed: 1000 Mb/s\n");
 }
 
 

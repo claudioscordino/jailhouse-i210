@@ -53,6 +53,7 @@
 	#define E1000_TIPG_IPGR2_DEF	(10 << 20)
 #define E1000_PCS_LCTL	0x4208	// PCS Link Control
 	#define E1000_PCS_LCTL_FSV_MSK	(3 << 1)	// Forced Speed Value mask
+	#define E1000_PCS_LCTL_FSV_10	(0 << 1)	// Forced Speed 10 Mb/s
 	#define E1000_PCS_LCTL_FSV_100	(1 << 1)	// Forced Speed 100 Mb/s
 	#define E1000_PCS_LCTL_FDV	(1 << 3)	// Forced Duplex Value
 	#define E1000_PCS_LCTL_FSD	(1 << 4)	// Force Speed and Duplex
