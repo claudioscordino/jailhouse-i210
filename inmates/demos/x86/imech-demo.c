@@ -145,18 +145,19 @@ static int eth_pci_probe(struct eth_device *dev)
 }
 
 
-static void eth_set_speed(struct eth_device *dev)
+static void eth_set_speed(struct eth_device *dev, u16 speed)
 {
 	u32 val;
 
 	val = mmio_read32(dev->bar_addr + E1000_CTRL_EXT);
+
 	// Disable low power modes
 	val &= ~(E1000_CTRL_EXT_SD_LP | E1000_CTRL_EXT_PHY_LP);
-	if (dev->speed == 100)
+	if (speed == 100)
 		val |= E1000_CTRL_EXT_BYPS; // Bypass speed detection
 	mmio_write32(dev->bar_addr + E1000_CTRL_EXT, val);
 
-	if (dev->speed == 100){
+	if (speed == 100){
 		val = mmio_read32(dev->bar_addr + E1000_PCS_LCTL);
 		val &= ~(E1000_PCS_LCTL_FSV_MSK);
 		val |= E1000_PCS_LCTL_FSV_100;
@@ -170,7 +171,7 @@ static void eth_set_speed(struct eth_device *dev)
 	val = mmio_read32(dev->bar_addr + E1000_CTRL);
 	printk("CTRL (before changing speed):\t%x\n", val);
         val |= E1000_CTRL_SLU; // Set link up
-	if (dev->speed == 100) {
+	if (speed == 100) {
         	val &= ~(E1000_CTRL_SPEED_MSK);
 		val |= E1000_CTRL_SPEED_100; // Set link to 100 Mp/s
 		val |= E1000_CTRL_FRCSPD; // Force speed
@@ -181,7 +182,7 @@ static void eth_set_speed(struct eth_device *dev)
 	delay_us(20000);
 
 	val = mdic_read(dev, E1000_MDIC_CCR);
-	if (dev->speed == 100) {
+	if (speed == 100) {
 		val &= ~(E1000_MDIC_CCR_SPEED_MSK);
 		val |= E1000_MDIC_CCR_SPEED_100;
 	}
@@ -192,6 +193,9 @@ static void eth_set_speed(struct eth_device *dev)
 	printk("Waiting for link...");
 	while (!(mmio_read32(dev->bar_addr + E1000_STATUS) & E1000_STATUS_LU))
 		cpu_relax();
+
+	dev->speed = speed;
+
 	printk(" ok\n");
 }
 
@@ -298,7 +302,6 @@ void inmate_main(void)
 	struct eth_header tx_packet;
 	struct eth_device dev;
 	int ret;
-	dev.speed = 100;
 
 	printk("Starting...\n");
 
@@ -307,7 +310,7 @@ void inmate_main(void)
 		goto error;
 
 	print_regs(&dev);
-	eth_set_speed(&dev);
+	eth_set_speed(&dev, 100);
 	eth_print_mac_addr(&dev);
 	eth_setup_rx(&dev);
 	eth_setup_tx(&dev);
