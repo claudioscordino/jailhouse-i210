@@ -51,6 +51,8 @@
 	#define E1000_TIPG_IPGT_DEF	(10 << 0)
 	#define E1000_TIPG_IPGR1_DEF	(10 << 10)
 	#define E1000_TIPG_IPGR2_DEF	(10 << 20)
+#define E1000_PHPM	0x00E14  // PHY Power Management
+	#define E1000_PHPM_NO_1000	(1 << 6)	// Disable 1000 Mb/s
 #define E1000_PCS_LCTL	0x4208	// PCS Link Control
 	#define E1000_PCS_LCTL_FSV_MSK	(3 << 1)	// Forced Speed Value mask
 	#define E1000_PCS_LCTL_FSV_10	(0 << 1)	// Forced Speed 10 Mb/s

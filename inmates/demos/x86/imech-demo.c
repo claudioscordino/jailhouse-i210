@@ -160,9 +160,11 @@ static void eth_set_speed(struct eth_device *dev)
 		val = mmio_read32(dev->bar_addr + E1000_PCS_LCTL);
 		val &= ~(E1000_PCS_LCTL_FSV_MSK);
 		val |= E1000_PCS_LCTL_FSV_100;
-		val |= E1000_PCS_LCTL_FDV;
-		val |= E1000_PCS_LCTL_FSD;
 		mmio_write32(dev->bar_addr + E1000_PCS_LCTL, val);
+
+		// Disable 1000 Mb/s in all power modes:
+		mmio_write32(dev->bar_addr + E1000_PHPM,
+				mmio_read32(dev->bar_addr + E1000_PHPM) | E1000_PHPM_NO_1000);
 	}
 
 	val = mmio_read32(dev->bar_addr + E1000_CTRL);
@@ -170,7 +172,7 @@ static void eth_set_speed(struct eth_device *dev)
         val |= E1000_CTRL_SLU; // Set link up
 	if (dev->speed == 100) {
         	val &= ~(E1000_CTRL_SPEED_MSK);
-        	val |= E1000_CTRL_SPEED_100; // Set link to 100 Mp/s (TODO: set also PHY ?)
+		val |= E1000_CTRL_SPEED_100; // Set link to 100 Mp/s
 		val |= E1000_CTRL_FRCSPD; // Force speed
 	} else {
 		val &= ~(E1000_CTRL_FRCSPD); // Enable PHY to control MAC speed
@@ -296,7 +298,7 @@ void inmate_main(void)
 	struct eth_header tx_packet;
 	struct eth_device dev;
 	int ret;
-	dev.speed = 1000;
+	dev.speed = 100;
 
 	printk("Starting...\n");
 
@@ -317,7 +319,7 @@ void inmate_main(void)
 	memcpy(tx_packet.src, dev.mac, sizeof(tx_packet.src));
 	memset(tx_packet.dst, 0xff, sizeof(tx_packet.dst));
 	tx_packet.type = ETH_FRAME_TYPE_ANNOUNCE;
-	for (int i = 0; i < 10000; ++i)
+	for (int i = 0; i < 100; ++i)
 		send_packet(&dev, &tx_packet, sizeof(tx_packet));
 	printk("Finished!\n");
 
