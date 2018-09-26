@@ -88,9 +88,10 @@
 	#define E1000_MDIC_OP_READ		(0x2 << 26)
 	#define E1000_MDIC_READY		(0x1 << 28)
 	#define E1000_MDIC_CCR			0
-	#define E1000_MDIC_CCR_POWER_DOWN	(1 << 11)
-	#define E1000_MDIC_CCR_SPEED_MSK	((1 << 6)|(1 << 13))
-	#define E1000_MDIC_CCR_SPEED_100	(1 << 6)
+		#define E1000_MDIC_CCR_POWER_DOWN	(1 << 11)
+		#define E1000_MDIC_CCR_SPEED_MSK	((1 << 6)|(1 << 13))
+		#define E1000_MDIC_CCR_SPEED_10		(0 << 13)
+		#define E1000_MDIC_CCR_SPEED_100	(1 << 13)
 
 struct rxd {
 	u64	addr;
