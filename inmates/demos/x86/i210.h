@@ -11,6 +11,9 @@
 // TODO: check
 #define ETH_IRQ_VECTOR		42
 
+#define BAR0_SIZE		(1024 * 1024) // Region0 size according to "sudo lspci -vvv"
+#define BAR3_SIZE		(16 * 1024)   // Region3 size according to "sudo lspci -vvv"
+
 // ============================ Data structures ================================
 #define RX_BUFFER_SIZE          2048	// This must be written into RCTL.BSIZE
 #define RX_DESCR_NB		8	// Number of descriptors in the rx queue

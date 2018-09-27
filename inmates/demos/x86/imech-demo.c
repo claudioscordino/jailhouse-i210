@@ -153,9 +153,7 @@ static int eth_discover_devices(void)
 		// Map BAR in the virtual memory
 		devs[devs_nb].bar_addr = (void *)(bar & ~0xfUL);
 
-		// TODO: check which one
-		// map_range(dev->bar_addr, PAGE_SIZE, MAP_UNCACHED);
-		map_range(devs[devs_nb].bar_addr, 128 * 1024, MAP_UNCACHED);
+		map_range(devs[devs_nb].bar_addr, BAR0_SIZE, MAP_UNCACHED);
 		print("BAR at %p\n", devs[devs_nb].bar_addr);
 
 		// Set MSI IRQ vector

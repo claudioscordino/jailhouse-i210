@@ -10,7 +10,7 @@ struct {
 	struct jailhouse_cache cache_regions[1];
 	__u8 pio_bitmap[0x2000];
 	struct jailhouse_pci_device pci_devices[1];
-        struct jailhouse_pci_capability pci_caps[1];
+        struct jailhouse_pci_capability pci_caps[2];
 } __attribute__((packed)) config = {
 	.cell = {
 		.signature = JAILHOUSE_CELL_DESC_SIGNATURE,
@@ -89,19 +89,31 @@ struct {
                           .type = JAILHOUSE_PCI_TYPE_DEVICE,
                           .domain = 0x0000,
                           .bdf = 0x0300, // 03:00.0
-                          .caps_start = 0,
-                          .num_caps = 1,
-                          .num_msi_vectors = 1,
-                          .msi_64bits = 1,
+			  .caps_start = 0, // root cell says 43
+			  .num_caps = 1,   // root cell says 7
+			  .num_msi_vectors = 1,
+			  .msi_64bits = 1,
+
+			  // Values taken from root cell:
+			  .num_msix_vectors = 5,
+			  .msix_region_size = 0x1000,
+			  .msix_address = 0xdf200000,
                   },
           },
 
           .pci_caps = {
-                  { /* Ethernet @03:00.0 */
+		  /* Ethernet @03:00.0 */
+                  {
                           .id = 0x5,
                           .start = 0x50, // Capabilities: [50] MSI: Enable- Count=1/1 Maskable+ 64bit+
-                          .len = 14,
+                          .len = 24,
                           .flags = JAILHOUSE_PCICAPS_WRITE,
                   },
+		  {
+			.id = 0x11,
+			.start = 0x70, // MSI-X capabilities (taken from root cell)
+			.len = 12,
+			.flags = JAILHOUSE_PCICAPS_WRITE,
+		  },
           },
 };
