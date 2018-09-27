@@ -328,7 +328,7 @@ static void send_packet(u16 dev, void *pkt, unsigned int size)
 
 void inmate_main(void)
 {
-	struct eth_header tx_packet;
+	struct eth_packet tx_packet;
 	printk("Starting...\n");
 
 	if (eth_discover_devices() < 0)
@@ -353,7 +353,7 @@ void inmate_main(void)
 	tx_packet.data[1] = 0x2;
 	tx_packet.data[2] = 0x4;
 	tx_packet.data[3] = 0x8;
-	tx_packet.type = ETH_FRAME_TYPE_ANNOUNCE;
+	tx_packet.type = ETHERTYPE_ETHERCAT;
 	for (int i = 0; i < 100; ++i)
 		send_packet(0, &tx_packet, sizeof(tx_packet));
 	printk("Finished!\n");

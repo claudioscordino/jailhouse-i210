@@ -152,11 +152,10 @@ struct eth_device {
 //	Ethertypes:
 //	0x88A4		EtherCAT protocol
 
+// TODO: switch endianness (e.g. using htons() )
+#define ETHERTYPE_ETHERCAT	0xA488 // EtherCAT is 0x88A4
 
-
-
-#define ETH_FRAME_TYPE_ANNOUNCE	0x004a
-struct eth_header {
+struct eth_packet {
 	u8	dst[6];
 	u8	src[6];
 	u16	type;
