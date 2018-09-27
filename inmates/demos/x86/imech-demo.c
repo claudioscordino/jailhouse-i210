@@ -12,7 +12,6 @@ static u8 buffer[RX_DESCR_NB * RX_BUFFER_SIZE];
 static struct rxd rx_ring[RX_DESCR_NB] __attribute__((aligned(128)));
 static struct txd tx_ring[TX_DESCR_NB] __attribute__((aligned(128)));
 static unsigned int rx_idx, tx_idx;
-static struct eth_header tx_packet;
 static struct eth_device devs [DEVS_MAX_NB];
 static u16 devs_nb = 0;	// Number of found devices
 
@@ -329,6 +328,7 @@ static void send_packet(u16 dev, void *pkt, unsigned int size)
 
 void inmate_main(void)
 {
+	struct eth_header tx_packet;
 	printk("Starting...\n");
 
 	if (eth_discover_devices() < 0)
@@ -341,7 +341,7 @@ void inmate_main(void)
 		printk("WARNING: more than one device found\n");
 	}
 
-	eth_set_speed(0, 100);
+	eth_set_speed(0, 1000);
 	eth_setup_rx(0);
 	eth_setup_tx(0);
 	print_regs(0);
@@ -349,6 +349,10 @@ void inmate_main(void)
 	// Forge a packet:
 	memcpy(tx_packet.src, devs[0].mac, sizeof(tx_packet.src));
 	memset(tx_packet.dst, 0xff, sizeof(tx_packet.dst));
+	tx_packet.data[0] = 0x1;
+	tx_packet.data[1] = 0x2;
+	tx_packet.data[2] = 0x4;
+	tx_packet.data[3] = 0x8;
 	tx_packet.type = ETH_FRAME_TYPE_ANNOUNCE;
 	for (int i = 0; i < 100; ++i)
 		send_packet(0, &tx_packet, sizeof(tx_packet));

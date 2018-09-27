@@ -141,13 +141,26 @@ struct eth_device {
 	u16	speed;
 };
 
+//	Structure of a IEEE 802.3 Ethernet II frame:
+//
+//	     7           1        6     6         2        46-1500    4
+//	------------------------------------------------------------------
+//	| Preamble |   Frame   | MAC | MAC |    Type     | Body    | CRC |
+//	|          | delimiter | Src | Dst | (Ethertype) |         |     |
+//	------------------------------------------------------------------
+//
+//	Ethertypes:
+//	0x88A4		EtherCAT protocol
+
+
+
 
 #define ETH_FRAME_TYPE_ANNOUNCE	0x004a
 struct eth_header {
 	u8	dst[6];
 	u8	src[6];
 	u16	type;
-	u8	data[];
+	u8	data[4];
 } __attribute__((packed));
 
 
