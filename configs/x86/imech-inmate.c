@@ -9,10 +9,8 @@ struct {
 	struct jailhouse_memory mem_regions[3];
 	struct jailhouse_cache cache_regions[1];
 	__u8 pio_bitmap[0x2000];
-#if 1
 	struct jailhouse_pci_device pci_devices[1];
         struct jailhouse_pci_capability pci_caps[1];
-#endif
 } __attribute__((packed)) config = {
 	.cell = {
 		.signature = JAILHOUSE_CELL_DESC_SIGNATURE,
@@ -27,12 +25,8 @@ struct {
 		.num_cache_regions = ARRAY_SIZE(config.cache_regions),
 		.num_irqchips = 0,
 		.pio_bitmap_size = ARRAY_SIZE(config.pio_bitmap),
-#if 0
-		.num_pci_devices = 0,
-#else
 		.num_pci_devices = ARRAY_SIZE(config.pci_devices),
                 .num_pci_caps = ARRAY_SIZE(config.pci_caps),
-#endif
 
 		.console = {
 			.type = JAILHOUSE_CON_TYPE_8250,
@@ -63,14 +57,12 @@ struct {
 				JAILHOUSE_MEM_COMM_REGION,
 		},
 
-#if 1
                 /* Ethernet BAR0 */ {
                         .phys_start = 0xdf100000,
                         .virt_start = 0xdf100000,
                         .size = 0x00100000,
                         .flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE,
                 },
-#endif
 	},
 
 	.cache_regions = {
@@ -81,23 +73,6 @@ struct {
 		},
 	},
 
-#if 0
-	.pio_bitmap = {
-		[     0/8 ...   0x3f/8] = -1,
-		[  0x40/8 ...   0x47/8] = -1,
-		[  0x48/8 ...   0x5f/8] = -1,
-		[  0x60/8 ...   0x67/8] = -1,
-		[  0x68/8 ...   0x6f/8] = -1,
-		[  0x70/8 ...   0x77/8] = -1,
-		[  0x78/8 ...  0x3af/8] = -1,
-		[ 0x3b0/8 ...  0x3df/8] = -1,
-		[ 0x3e0/8 ...  0x3f7/8] = -1,
-		[ 0x3f8/8 ...  0x3ff/8] = 0,
-		[ 0x400/8 ... 0xffff/8] = -1,
-	},
-
-
-#else
 	.pio_bitmap = {
 		[     0/8 ...  0x2f7/8] = -1,
 		[ 0x2f8/8 ...  0x2ff/8] = 0, /* serial2 */
@@ -108,9 +83,7 @@ struct {
 		[0xe018/8 ... 0xffff/8] = -1,
 	},
 
-#endif
 
-#if 1
         .pci_devices = {
                   { /* Ethernet @03:00.0 */
                           .type = JAILHOUSE_PCI_TYPE_DEVICE,
@@ -131,7 +104,4 @@ struct {
                           .flags = JAILHOUSE_PCICAPS_WRITE,
                   },
           },
-#endif
-
-
 };
