@@ -6,12 +6,28 @@
 #include <inmate.h>
 #include "i210.h"
 
+// ============================ Data structures ================================
+
 static u8 buffer[RX_DESCR_NB * RX_BUFFER_SIZE];
 static struct rxd rx_ring[RX_DESCR_NB] __attribute__((aligned(128)));
 static struct txd tx_ring[TX_DESCR_NB] __attribute__((aligned(128)));
 static unsigned int rx_idx, tx_idx;
 static struct eth_header tx_packet;
 static struct eth_device devs [DEVS_MAX_NB];
+static u16 devs_nb = 0;	// Number of found devices
+
+// ============================ I-MECH API =====================================
+
+struct eth_device* get_device(u16 dev);
+
+struct eth_device* get_device(u16 dev)
+{
+	if (dev >= devs_nb)
+		return NULL;
+	else
+		return &(devs[dev]);
+}
+
 
 static u16 mdic_read(u16 dev, unsigned int reg)
 {
@@ -117,47 +133,58 @@ static void eth_get_mac_addr(u16 dev)
 
 static int eth_discover_devices(void)
 {
-        u64 bar;
-        int bdf;
+	u64 bar;
+	int bdf = 0;
+	while (devs_nb < DEVS_MAX_NB) {
 
-        bdf = pci_find_device(ETH_VENDORID, ETH_DEVICEID, 0);
-        if (bdf < 0) {
-                print("ERROR: no device found\n");
-                return -1;
-        }
-        print("found %04x:%04x at %02x:%02x.%x\n",
-                        pci_read_config(bdf, PCI_CFG_VENDOR_ID, 2),
-                        pci_read_config(bdf, PCI_CFG_DEVICE_ID, 2),
-                        bdf >> 8, (bdf >> 3) & 0x1f, bdf & 0x3);
+		bdf = pci_find_device(ETH_VENDORID, ETH_DEVICEID, bdf);
+		if (bdf < 0)
+			break;
 
-        // Read Base Address Register in the configuration
-        bar = pci_read_config(bdf, PCI_CFG_BAR, 4);
-        if ((bar & 0x6) == 0x4)
-                bar |= (u64)pci_read_config(bdf, PCI_CFG_BAR + 4, 4) << 32;
+		print("found %04x:%04x at %02x:%02x.%x\n",
+				pci_read_config(bdf, PCI_CFG_VENDOR_ID, 2),
+				pci_read_config(bdf, PCI_CFG_DEVICE_ID, 2),
+				bdf >> 8, (bdf >> 3) & 0x1f, bdf & 0x3);
 
-        // Map BAR in the virtual memory
-	// TODO: check which one
-        devs[0].bar_addr = (void *)(bar & ~0xfUL);
-/*         map_range(dev->bar_addr, PAGE_SIZE, MAP_UNCACHED); */
-        map_range(devs[0].bar_addr, 128 * 1024, MAP_UNCACHED);
-        print("BAR at %p\n", devs[0].bar_addr);
+		// Read Base Address Register in the configuration
+		bar = pci_read_config(bdf, PCI_CFG_BAR, 4);
+		if ((bar & 0x6) == 0x4)
+			bar |= (u64)pci_read_config(bdf, PCI_CFG_BAR + 4, 4) << 32;
 
-        // Set MSI IRQ vector
-	// TODO: missing in e1000
-        pci_msi_set_vector(bdf, ETH_IRQ_VECTOR);
+		// Map BAR in the virtual memory
+		devs[devs_nb].bar_addr = (void *)(bar & ~0xfUL);
 
-        pci_write_config(bdf, PCI_CFG_COMMAND,
-                        PCI_CMD_MEM | PCI_CMD_MASTER, 2);
+		// TODO: check which one
+		// map_range(dev->bar_addr, PAGE_SIZE, MAP_UNCACHED);
+		map_range(devs[devs_nb].bar_addr, 128 * 1024, MAP_UNCACHED);
+		print("BAR at %p\n", devs[devs_nb].bar_addr);
 
-	// Software reset
-	mmio_write32(devs[0].bar_addr + E1000_CTRL, E1000_CTRL_RST);
-	while (!(mmio_read32(devs[0].bar_addr + E1000_STATUS) | E1000_STATUS_RST_DONE))
-		cpu_relax();
+		// Set MSI IRQ vector
+		// TODO: missing in e1000. Check if needed
+		pci_msi_set_vector(bdf, ETH_IRQ_VECTOR);
 
-        print("PCI device succesfully initialized\n");
+		pci_write_config(bdf, PCI_CFG_COMMAND,
+				PCI_CMD_MEM | PCI_CMD_MASTER, 2);
 
-	eth_get_mac_addr(0);
-        return 0;
+		// Software reset
+		mmio_write32(devs[devs_nb].bar_addr + E1000_CTRL, E1000_CTRL_RST);
+		while (!(mmio_read32(devs[devs_nb].bar_addr + E1000_STATUS) | E1000_STATUS_RST_DONE))
+			cpu_relax();
+
+		eth_get_mac_addr(devs_nb);
+
+		devs_nb++;
+		bdf++;
+	}
+
+ 	if (devs_nb < 1) {
+		print("ERROR: no device found\n");
+		return -1;
+	}
+
+ 	print("%d PCI devices succesfully initialized\n", devs_nb);
+
+ 	return 0;
 }
 
 
@@ -307,14 +334,17 @@ void inmate_main(void)
 	if (eth_discover_devices() < 0)
 		goto error;
 
-	print_regs(0);
-	eth_set_speed(0, 1000);
+	if (get_device(0) == NULL) {
+		printk("ERROR: no devices found\n");
+		goto error;
+	} else if (get_device(1) != NULL) {
+		printk("WARNING: more than one device found\n");
+	}
+
+	eth_set_speed(0, 100);
 	eth_setup_rx(0);
 	eth_setup_tx(0);
 	print_regs(0);
-
-	printk("Size = %ld\n", sizeof(struct rxd));
-	printk("Size = %ld\n", sizeof(rx_ring));
 
 	// Forge a packet:
 	memcpy(tx_packet.src, devs[0].mac, sizeof(tx_packet.src));
