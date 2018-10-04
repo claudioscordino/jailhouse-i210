@@ -6,6 +6,8 @@
 #include <inmate.h>
 #include "i210.h"
 
+void irq_handler(void);
+
 // ============================ Data structures ================================
 
 static u8 buffer[RX_DESCR_NB * RX_BUFFER_SIZE];
@@ -17,9 +19,7 @@ static u16 devs_nb = 0;	// Number of found devices
 
 // ============================ I-MECH API =====================================
 
-struct eth_device* get_device(u16 dev);
-
-struct eth_device* get_device(u16 dev)
+static struct eth_device* get_device(u16 dev)
 {
 	if (dev >= devs_nb)
 		return NULL;
@@ -81,6 +81,12 @@ static void print_regs(u16 dev)
 	printk("%d.STATUS:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_STATUS));
 	printk("%d.TCTL:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_TCTL));
 	printk("%d.TIPG:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_TIPG));
+	printk("%d.GPIE:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_GPIE));
+	printk("%d.IVAR:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_IVAR));
+	printk("%d.IVAR_MISC:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_IVAR_MISC));
+	printk("%d.EIMS:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_EIMS));
+	printk("%d.EICR:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_EICR));
+	printk("PCI Control register = %x\n", pci_read_config(devs[dev].bdf, 0x4, 2));
 
 	// Check speeds
 	val = mmio_read32(devs[dev].bar_addr + E1000_STATUS);
@@ -129,36 +135,75 @@ static void eth_get_mac_addr(u16 dev)
 	}
 }
 
+void irq_handler(void)
+{
+        printk("FIRE!!!!!!!!!!!!!!!!!11111\n");
+}
+
+
 
 static int eth_discover_devices(void)
 {
-	u64 bar;
+	u64 bar, bar3;
 	int bdf = 0;
+	u16 ctrl;
+
+	int_init();
+
 	while (devs_nb < DEVS_MAX_NB) {
 
 		bdf = pci_find_device(ETH_VENDORID, ETH_DEVICEID, bdf);
 		if (bdf < 0)
 			break;
+		devs[devs_nb].bdf = bdf;
 
 		print("found %04x:%04x at %02x:%02x.%x\n",
 				pci_read_config(bdf, PCI_CFG_VENDOR_ID, 2),
 				pci_read_config(bdf, PCI_CFG_DEVICE_ID, 2),
 				bdf >> 8, (bdf >> 3) & 0x1f, bdf & 0x3);
 
+		ctrl = pci_read_config(bdf, 0x4, 2);
+		printk("PCI Control register = %x\n", ctrl);
+		ctrl |= 7;
+		ctrl &= ~(1 << 10);
+		pci_write_config(bdf, 0x4, ctrl, 2);
+		printk("PCI Control register = %x\n", pci_read_config(bdf, 0x4, 2));
+
 		// Read Base Address Register in the configuration
 		bar = pci_read_config(bdf, PCI_CFG_BAR, 4);
+		if ((bar & BAR_TYPE_MSK) == BAR_TYPE_32BIT)
+			printk ("bar0 (%llx) is at 32-bit\n", bar);
+		else
+			printk ("bar0 (%llx) is at 64-bit\n", bar);
 		if ((bar & 0x6) == 0x4)
 			bar |= (u64)pci_read_config(bdf, PCI_CFG_BAR + 4, 4) << 32;
 
-		// Map BAR in the virtual memory
+		// Map BAR0 in the virtual memory
 		devs[devs_nb].bar_addr = (void *)(bar & ~0xfUL);
 
 		map_range(devs[devs_nb].bar_addr, BAR0_SIZE, MAP_UNCACHED);
-		print("BAR at %p\n", devs[devs_nb].bar_addr);
+		print("BAR0 at %p\n", devs[devs_nb].bar_addr);
+
+		// Map BAR3 in the virtual memory
+		bar3 = pci_read_config(bdf, BAR3_OFFST, 4);
+		if ((bar3 & BAR_TYPE_MSK) == BAR_TYPE_32BIT)
+			printk ("bar3 (%llx) is at 32-bit\n", bar3);
+		else
+			printk ("bar3 (%llx) is at 64-bit\n", bar3);
+		if ((bar3 & 0x6) == 0x4)
+			bar3 |= (u64)pci_read_config(bdf, BAR3_OFFST + 4, 4) << 32;
+		devs[devs_nb].bar3_addr = (void *)(bar3 & ~0xfUL);
+
+		map_range(devs[devs_nb].bar3_addr, BAR3_SIZE, MAP_UNCACHED);
+		print("BAR3 at %p\n", devs[devs_nb].bar3_addr);
 
 		// Set MSI IRQ vector
-		// TODO: missing in e1000. Check if needed
+		int_set_handler(ETH_IRQ_VECTOR, irq_handler);
+#ifdef MSIX
+		pci_msix_set_vector(bdf, ETH_IRQ_VECTOR, 0);
+#else
 		pci_msi_set_vector(bdf, ETH_IRQ_VECTOR);
+#endif
 
 		pci_write_config(bdf, PCI_CFG_COMMAND,
 				PCI_CMD_MEM | PCI_CMD_MASTER, 2);
@@ -239,11 +284,37 @@ static void eth_set_speed(u16 dev, u16 speed)
 	printk(" ok\n");
 }
 
-
+#define REGSET (devs_, dev_, reg_, ...) \
+	mmio_write32(devs_[dev_].bar_addr + reg_\
+			mmio_read32(devs_[dev_].bar_addr + reg_) __VAR_ARGS__ );
 
 static void eth_setup_rx(u16 dev)
 {
 	u32 val;
+
+	// Disable interrupt moderation:
+	mmio_write32(devs[dev].bar_addr + E1000_EITR_0, 0);
+
+	// Enable all interrupts:
+	mmio_write32(devs[dev].bar_addr + E1000_IMS, 0xFFFFFFFF);
+	mmio_write32(devs[dev].bar_addr + E1000_EIMS, 0xFFFFFFFF);
+
+#ifdef ONE
+	mmio_write32(devs[dev].bar_addr + E1000_GPIE,
+			mmio_read32(devs[dev].bar_addr + E1000_GPIE) & ~(E1000_GPIE_MSIX));
+#else
+	mmio_write32(devs[dev].bar_addr + E1000_GPIE,
+			mmio_read32(devs[dev].bar_addr + E1000_GPIE) | E1000_GPIE_MSIX);
+#endif
+
+	mmio_write32(devs[dev].bar_addr + E1000_IVAR,
+			mmio_read32(devs[dev].bar_addr + E1000_IVAR) | (1 << 7));
+	mmio_write32(devs[dev].bar_addr + E1000_IVAR,
+			mmio_read32(devs[dev].bar_addr + E1000_IVAR) & ~(0x7));
+	mmio_write32(devs[dev].bar_addr + E1000_IVAR_MISC,
+			mmio_read32(devs[dev].bar_addr + E1000_IVAR_MISC) | (1 << 15));
+	mmio_write32(devs[dev].bar_addr + E1000_IVAR_MISC,
+			mmio_read32(devs[dev].bar_addr + E1000_IVAR_MISC) & ~(0x7));
 
 	// Disable all RX queues (TODO: write 0 ?)
 	for (int i=0; i < NUM_QUEUES; ++i){
@@ -267,7 +338,8 @@ static void eth_setup_rx(u16 dev)
                   	mmio_read32(devs[dev].bar_addr + E1000_RXDCTL(0)) | E1000_RXDCTL_ENABLE);
 
 	val = mmio_read32(devs[dev].bar_addr + E1000_RCTL);
-	val &= ~(E1000_RCTL_BAM | E1000_RCTL_BSIZE);
+	val &= ~(E1000_RCTL_BSIZE);
+	val |= (E1000_RCTL_BAM);
 	val |= (E1000_RCTL_RXEN | E1000_RCTL_SECRC | E1000_RCTL_BSIZE_2048);
 	mmio_write32(devs[dev].bar_addr + E1000_RCTL, val);
 
@@ -357,5 +429,18 @@ void inmate_main(void)
 	printk("Finished!\n");
 
 error:
-	cpu_relax();
+	while (true) {
+/* 		if (rx_ring[rx_idx].dd) { */
+/* 			unsigned int idx = rx_idx; */
+/*  */
+/*         		rx_ring[idx].dd = 0; */
+/*         		rx_idx = (rx_idx + 1) % RX_DESCR_NB; */
+/*         		mmio_write32(devs[0].bar_addr + E1000_RDT(0), idx); */
+/* 			printk("Received!\n"); */
+/* 		} else { */
+/* 			u16 status = pci_read_config(devs[0].bdf, 0x6, 2); */
+/* 			printk("Status = %x\n", status); */
+			cpu_relax();
+/* 		} */
+	}
 }

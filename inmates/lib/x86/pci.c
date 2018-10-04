@@ -74,10 +74,12 @@ void pci_write_config(u16 bdf, unsigned int addr, u32 value, unsigned int size)
 	}
 }
 
+/* For MSI-X capability see: https://goo.gl/CPTujK */
 void pci_msix_set_vector(u16 bdf, unsigned int vector, u32 index)
 {
-	int cap = pci_find_cap(bdf, PCI_CAP_MSIX);
+	int cap = pci_find_cap(bdf, PCI_CAP_MSIX); // Offset of capability (0x70)
 	unsigned int bar;
+	printk ("cap = %d\n", cap);
 	u64 msix_table = 0;
 	u32 addr;
 	u16 ctrl;
@@ -85,18 +87,30 @@ void pci_msix_set_vector(u16 bdf, unsigned int vector, u32 index)
 
 	if (cap < 0)
 		return;
-	ctrl = pci_read_config(bdf, cap + 2, 2);
+	// Message Control Register:
+	ctrl = pci_read_config(bdf, cap + 2, 4);
+	printk ("ctrl = %x\n", ctrl);
 	/* bounds check */
-	if (index > (ctrl & 0x3ff))
+	if (index > (ctrl & 0x3ff)){
+		printk("ERROR: out of bound index!\n");
 		return;
+	}
 	table = pci_read_config(bdf, cap + 4, 4);
+
+	/* Bits 0-2 of table indicate which BAR maps the MSI-X table. */
 	bar = (table & 7) * 4 + PCI_CFG_BAR;
+	printk("BAR retrieved from table = %x\n", bar);
 	addr = pci_read_config(bdf, bar, 4);
 
 	if ((addr & 6) == PCI_BAR_64BIT) {
+		printk("MSI-X bar is at 64 bit\n");
 		msix_table = pci_read_config(bdf, bar + 4, 4);
 		msix_table <<= 32;
+	} else {
+		printk("MSI-X bar is at 32 bit\n");
 	}
+
+	/* Bits 0-3 of BARs include info about 32/64-bit and prefetching */
 	msix_table |= addr & ~0xf;
 	msix_table += table & ~7;
 
@@ -105,6 +119,7 @@ void pci_msix_set_vector(u16 bdf, unsigned int vector, u32 index)
 	pci_write_config(bdf, cap + 2, ctrl, 2);
 
 	msix_table += 16 * index;
+	/* This is the XAPIC_BASE */
 	mmio_write32((u32 *)msix_table, 0xfee00000 | cpu_id() << 12);
 	mmio_write32((u32 *)(msix_table + 4), 0);
 	mmio_write32((u32 *)(msix_table + 8), vector);
@@ -120,18 +135,25 @@ void pci_msi_set_vector(u16 bdf, unsigned int vector)
 	int cap = pci_find_cap(bdf, PCI_CAP_MSI);
 	u16 ctl, data;
 
-	if (cap < 0)
+	if (cap < 0){
+		printk("ERROR: MSI capability not found!\n");
 		return;
+	}
 
 	pci_write_config(bdf, cap + 0x04, 0xfee00000 | (cpu_id() << 12), 4);
 
 	ctl = pci_read_config(bdf, cap + 0x02, 2);
+	printk("PCI ctl: %x\n", ctl);
 	if (ctl & (1 << 7)) {
+		printk("MSI is 64-bit capable\n");
 		pci_write_config(bdf, cap + 0x08, 0, 4);
 		data = cap + 0x0c;
-	} else
+	} else {
+		printk("MSI not 64-bit capable\n");
 		data = cap + 0x08;
+	}
 	pci_write_config(bdf, data, vector, 2);
 
+	pci_write_config(bdf, cap + 0x10, 0x0000, 2);
 	pci_write_config(bdf, cap + 0x02, 0x0001, 2);
 }

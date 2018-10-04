@@ -6,11 +6,12 @@
 struct {
 	struct jailhouse_cell_desc cell;
 	__u64 cpus[1];
-	struct jailhouse_memory mem_regions[3];
+	struct jailhouse_memory mem_regions[5];
+	struct jailhouse_irqchip irqchips[1];
 	struct jailhouse_cache cache_regions[1];
 	__u8 pio_bitmap[0x2000];
 	struct jailhouse_pci_device pci_devices[1];
-        struct jailhouse_pci_capability pci_caps[2];
+        struct jailhouse_pci_capability pci_caps[7];
 } __attribute__((packed)) config = {
 	.cell = {
 		.signature = JAILHOUSE_CELL_DESC_SIGNATURE,
@@ -23,7 +24,7 @@ struct {
 		.cpu_set_size = sizeof(config.cpus),
 		.num_memory_regions = ARRAY_SIZE(config.mem_regions),
 		.num_cache_regions = ARRAY_SIZE(config.cache_regions),
-		.num_irqchips = 0,
+		.num_irqchips = ARRAY_SIZE(config.irqchips),
 		.pio_bitmap_size = ARRAY_SIZE(config.pio_bitmap),
 		.num_pci_devices = ARRAY_SIZE(config.pci_devices),
                 .num_pci_caps = ARRAY_SIZE(config.pci_caps),
@@ -63,6 +64,20 @@ struct {
                         .size = 0x00100000,
                         .flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE,
                 },
+		/* MemRegion: df000000-df0fffff : 0000:03:00.0 */
+		{
+			.phys_start = 0xdf000000,
+			.virt_start = 0xdf000000,
+			.size = 0x100000,
+			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE,
+		},
+		/* MemRegion: df201000-df203fff : igb */
+		{
+			.phys_start = 0xdf201000,
+			.virt_start = 0xdf201000,
+			.size = 0x3000,
+			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE,
+		},
 	},
 
 	.cache_regions = {
@@ -70,6 +85,16 @@ struct {
 			.start = 0,
 			.size = 2,
 			.type = JAILHOUSE_CACHE_L3,
+		},
+	},
+
+	.irqchips = {
+		{
+			.address = 0xfec00000,
+			.id = 0x1f0f8,
+			.pin_bitmap = {
+				0x00000000, 0x00000000, 0x00000000, 0x000E0000
+			},
 		},
 	},
 
@@ -86,34 +111,67 @@ struct {
 
         .pci_devices = {
                   { /* Ethernet @03:00.0 */
-                          .type = JAILHOUSE_PCI_TYPE_DEVICE,
-                          .domain = 0x0000,
-                          .bdf = 0x0300, // 03:00.0
-			  .caps_start = 0, // root cell says 43
-			  .num_caps = 1,   // root cell says 7
-			  .num_msi_vectors = 1,
-			  .msi_64bits = 1,
-
-			  // Values taken from root cell:
-			  .num_msix_vectors = 5,
-			  .msix_region_size = 0x1000,
-			  .msix_address = 0xdf200000,
+			.type = JAILHOUSE_PCI_TYPE_DEVICE,
+			.iommu = 1,
+			.domain = 0x0,
+			.bdf = 0x300,
+			.bar_mask = {
+				0xfff00000, 0x00000000, 0xffffffe0,
+				0xffffc000, 0x00000000, 0x00000000,
+			},
+			.caps_start = 0, // Root cell says 43
+			.num_caps = 7,
+			.num_msi_vectors = 1,
+			.msi_64bits = 1,
+			.num_msix_vectors = 1, // Root cell says 5
+			.msix_region_size = 0x4000,
+			.msix_address = 0xdf200000,
                   },
           },
 
           .pci_caps = {
-		  /* Ethernet @03:00.0 */
-                  {
-                          .id = 0x5,
-                          .start = 0x50, // Capabilities: [50] MSI: Enable- Count=1/1 Maskable+ 64bit+
-                          .len = 24,
-                          .flags = JAILHOUSE_PCICAPS_WRITE,
-                  },
-		  {
+		/* PCIDevice: 03:00.0 */
+		{
+			.id = 0x1,
+			.start = 0x40,
+			.len = 8,
+			.flags = JAILHOUSE_PCICAPS_WRITE,
+		},
+		{
+			.id = 0x5,
+			.start = 0x50,
+			.len = 24,
+			.flags = JAILHOUSE_PCICAPS_WRITE,
+		},
+		{
 			.id = 0x11,
-			.start = 0x70, // MSI-X capabilities (taken from root cell)
+			.start = 0x70,
 			.len = 12,
 			.flags = JAILHOUSE_PCICAPS_WRITE,
-		  },
+		},
+		{
+			.id = 0x10,
+			.start = 0xa0,
+			.len = 60,
+			.flags = 0,
+		},
+		{
+			.id = 0x1 | JAILHOUSE_PCI_EXT_CAP,
+			.start = 0x100,
+			.len = 4,
+			.flags = 0,
+		},
+		{
+			.id = 0x3 | JAILHOUSE_PCI_EXT_CAP,
+			.start = 0x140,
+			.len = 4,
+			.flags = 0,
+		},
+		{
+			.id = 0x17 | JAILHOUSE_PCI_EXT_CAP,
+			.start = 0x1a0,
+			.len = 4,
+			.flags = 0,
+		},
           },
 };
