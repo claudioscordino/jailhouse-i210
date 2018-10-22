@@ -87,6 +87,7 @@ static void print_regs(u16 dev)
 	printk("%d.EIMS:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_EIMS));
 	printk("%d.EICR:\t%x\n", dev, mmio_read32(devs[dev].bar_addr + E1000_EICR));
 	printk("PCI Control register = %x\n", pci_read_config(devs[dev].bdf, 0x4, 2));
+	printk("PCI Status register = %x\n", pci_read_config(devs[dev].bdf, 0x6, 2));
 
 	// Check speeds
 	val = mmio_read32(devs[dev].bar_addr + E1000_STATUS);
@@ -137,7 +138,8 @@ static void eth_get_mac_addr(u16 dev)
 
 void irq_handler(void)
 {
-        printk("FIRE!!!!!!!!!!!!!!!!!11111\n");
+	while (true)
+        	printk("FIRE!!!!!!!!!!!!!!!!!11111\n");
 }
 
 
@@ -164,8 +166,8 @@ static int eth_discover_devices(void)
 
 		ctrl = pci_read_config(bdf, 0x4, 2);
 		printk("PCI Control register = %x\n", ctrl);
-		ctrl |= 7;
-		ctrl &= ~(1 << 10);
+		ctrl |= 6; // Enable BME and other stuff
+		ctrl |= (1 << 10); // No Interrupt Disable
 		pci_write_config(bdf, 0x4, ctrl, 2);
 		printk("PCI Control register = %x\n", pci_read_config(bdf, 0x4, 2));
 
@@ -197,14 +199,6 @@ static int eth_discover_devices(void)
 		map_range(devs[devs_nb].bar3_addr, BAR3_SIZE, MAP_UNCACHED);
 		print("BAR3 at %p\n", devs[devs_nb].bar3_addr);
 
-		// Set MSI IRQ vector
-		int_set_handler(ETH_IRQ_VECTOR, irq_handler);
-#ifdef MSIX
-		pci_msix_set_vector(bdf, ETH_IRQ_VECTOR, 0);
-#else
-		pci_msi_set_vector(bdf, ETH_IRQ_VECTOR);
-#endif
-
 		pci_write_config(bdf, PCI_CFG_COMMAND,
 				PCI_CMD_MEM | PCI_CMD_MASTER, 2);
 
@@ -229,6 +223,14 @@ static int eth_discover_devices(void)
  	return 0;
 }
 
+static void interrupt_enable(u16 dev)
+{
+		// Set MSI IRQ vector
+		int_set_handler(ETH_IRQ_VECTOR, irq_handler);
+
+		//pci_msi_set_vector(devs[dev].bdf, ETH_IRQ_VECTOR);
+		pci_msix_set_vector(devs[dev].bdf, ETH_IRQ_VECTOR, 0);
+}
 
 static void eth_set_speed(u16 dev, u16 speed)
 {
@@ -237,22 +239,26 @@ static void eth_set_speed(u16 dev, u16 speed)
 	val = mmio_read32(devs[dev].bar_addr + E1000_CTRL_EXT);
 
 	// Disable low power modes
+	// Linux value (dumped): 0x101400C0
 	val &= ~(E1000_CTRL_EXT_SD_LP | E1000_CTRL_EXT_PHY_LP);
 	if (speed == 100)
 		val |= E1000_CTRL_EXT_BYPS; // Bypass speed detection
 	mmio_write32(devs[dev].bar_addr + E1000_CTRL_EXT, val);
 
 	if (speed == 100){
+		// Linux value (dumped): 0x0A10000C
 		val = mmio_read32(devs[dev].bar_addr + E1000_PCS_LCTL);
 		val &= ~(E1000_PCS_LCTL_FSV_MSK);
 		val |= E1000_PCS_LCTL_FSV_100;
 		mmio_write32(devs[dev].bar_addr + E1000_PCS_LCTL, val);
 
 		// Disable 1000 Mb/s in all power modes:
+		// Linux value (dumped): 0x0000009D
 		mmio_write32(devs[dev].bar_addr + E1000_PHPM,
 				mmio_read32(devs[dev].bar_addr + E1000_PHPM) | E1000_PHPM_NO_1000);
 	}
 
+	// Linux value (dumped): 0x581F0241
 	val = mmio_read32(devs[dev].bar_addr + E1000_CTRL);
 	printk("CTRL (before changing speed):\t%x\n", val);
         val |= E1000_CTRL_SLU; // Set link up
@@ -291,28 +297,44 @@ static void eth_set_speed(u16 dev, u16 speed)
 static void eth_setup_rx(u16 dev)
 {
 	u32 val;
+	// Values taken from pag. 327 and 333 of i210 datasheet for MSI-X single vector
 
 	// Disable interrupt moderation:
-	mmio_write32(devs[dev].bar_addr + E1000_EITR_0, 0);
+	// (i210 datasheet says "A null value is not a valid setting")
+	mmio_write32(devs[dev].bar_addr + E1000_EITR_0, 0x08);
+	mmio_write32(devs[dev].bar_addr + E1000_EITR_1, 0x08);
+	mmio_write32(devs[dev].bar_addr + E1000_EITR_2, 0x08);
+	mmio_write32(devs[dev].bar_addr + E1000_EITR_3, 0x08);
+	mmio_write32(devs[dev].bar_addr + E1000_EITR_4, 0x08);
 
 	// Enable all interrupts:
-	mmio_write32(devs[dev].bar_addr + E1000_IMS, 0xFFFFFFFF);
+	mmio_write32(devs[dev].bar_addr + E1000_IMS, 0x0);
+
+	mmio_write32(devs[dev].bar_addr + E1000_IAM, 0x0);
+
 	mmio_write32(devs[dev].bar_addr + E1000_EIMS, 0xFFFFFFFF);
+	mmio_write32(devs[dev].bar_addr + E1000_EICS, 0xFFFFFFFF);
 
-#ifdef ONE
-	mmio_write32(devs[dev].bar_addr + E1000_GPIE,
-			mmio_read32(devs[dev].bar_addr + E1000_GPIE) & ~(E1000_GPIE_MSIX));
-#else
-	mmio_write32(devs[dev].bar_addr + E1000_GPIE,
-			mmio_read32(devs[dev].bar_addr + E1000_GPIE) | E1000_GPIE_MSIX);
-#endif
+	mmio_write32(devs[dev].bar_addr + E1000_EIAC, 0);
 
+	mmio_write32(devs[dev].bar_addr + E1000_EIAM, 0xFFFFFFFF);
+
+
+	// Linux value (dumped): 0x50080004
+	val = mmio_read32(devs[dev].bar_addr + E1000_GPIE);
+	val |= ((1 << 0) | (1 << 30) | (1 << 31));
+	val &= ~(1 << 4);
+ 	mmio_write32(devs[dev].bar_addr + E1000_GPIE, val);
+
+
+	// Linux value (dumped): 0x82828181
 	mmio_write32(devs[dev].bar_addr + E1000_IVAR,
 			mmio_read32(devs[dev].bar_addr + E1000_IVAR) | (1 << 7));
 	mmio_write32(devs[dev].bar_addr + E1000_IVAR,
 			mmio_read32(devs[dev].bar_addr + E1000_IVAR) & ~(0x7));
-	mmio_write32(devs[dev].bar_addr + E1000_IVAR_MISC,
-			mmio_read32(devs[dev].bar_addr + E1000_IVAR_MISC) | (1 << 15));
+
+	// Linux value (dumped): 0x00008000
+	mmio_write32(devs[dev].bar_addr + E1000_IVAR_MISC, (1 << 15));
 	mmio_write32(devs[dev].bar_addr + E1000_IVAR_MISC,
 			mmio_read32(devs[dev].bar_addr + E1000_IVAR_MISC) & ~(0x7));
 
@@ -333,15 +355,16 @@ static void eth_setup_rx(u16 dev)
         mmio_write32(devs[dev].bar_addr + E1000_RDH(0), 0);
         mmio_write32(devs[dev].bar_addr + E1000_RDT(0), 0); // Overwritten below
 
-	// Enable only the first queue
-        mmio_write32(devs[dev].bar_addr + E1000_RXDCTL(0),
-                  	mmio_read32(devs[dev].bar_addr + E1000_RXDCTL(0)) | E1000_RXDCTL_ENABLE);
-
+	// Linux value (dumped): 0x04448022
 	val = mmio_read32(devs[dev].bar_addr + E1000_RCTL);
 	val &= ~(E1000_RCTL_BSIZE);
-	val |= (E1000_RCTL_BAM);
+	val |= (E1000_RCTL_BAM); // Accept Broadcast Packets
 	val |= (E1000_RCTL_RXEN | E1000_RCTL_SECRC | E1000_RCTL_BSIZE_2048);
 	mmio_write32(devs[dev].bar_addr + E1000_RCTL, val);
+
+	// Enable only the first queue
+        mmio_write32(devs[dev].bar_addr + E1000_RXDCTL(0),
+			mmio_read32(devs[dev].bar_addr + E1000_RXDCTL(0)) | E1000_RXDCTL_ENABLE);
 
 	mmio_write32(devs[dev].bar_addr + E1000_RDT(0), RX_DESCR_NB - 1);
 }
@@ -411,9 +434,11 @@ void inmate_main(void)
 		printk("WARNING: more than one device found\n");
 	}
 
+	print_regs(0);
 	eth_set_speed(0, 1000);
 	eth_setup_rx(0);
 	eth_setup_tx(0);
+	interrupt_enable(0);
 	print_regs(0);
 
 	// Forge a packet:

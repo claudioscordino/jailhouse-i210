@@ -73,6 +73,7 @@ void int_init(void)
 
 static void __attribute__((used)) handle_interrupt(unsigned int vector)
 {
+	printk("CALLED!!\n");
 	int_handler[vector]();
 	write_msr(X2APIC_EOI, APIC_EOI_ACK);
 }

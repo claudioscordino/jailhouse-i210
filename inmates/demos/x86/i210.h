@@ -9,7 +9,7 @@
 #define NUM_QUEUES		4	// i210 has 4 rx and 4 tx queues
 
 // TODO: check
-#define ETH_IRQ_VECTOR		18
+#define ETH_IRQ_VECTOR		32
 
 // Regions size according to "sudo lspci -vvv":
 #define BAR0_SIZE		(1024 * 1024)
@@ -37,6 +37,8 @@
 	#define E1000_CTRL_SPEED_100	(1 << 8)	// 100 Mb/s speed
 	#define E1000_CTRL_FRCSPD	(1 << 11)	// Force Speed
 	#define E1000_CTRL_FRCDPLX	(1 << 12)	// Force Duplex
+	#define E1000_CTRL_SDP0		(1 << 16)
+	#define E1000_CTRL_SDP1		(1 << 17)
 	#define E1000_CTRL_RST		(1 << 26)	// Reset
 #define E1000_STATUS	0x00008	// Device Status - RO
 	#define E1000_STATUS_FD		(1 << 0)	// Full Duplex (TODO: check if needed)
@@ -49,6 +51,7 @@
 	#define E1000_CTRL_EXT_BYPS	(1 << 15)	// Speed Select Bypass
 	#define E1000_CTRL_EXT_SD_LP	(1 << 18)	// SerDes Low Power Enable
 	#define E1000_CTRL_EXT_PHY_LP	(1 << 20)	// PHY Power Down
+#define E1000_ICS	0x00C8
 #define E1000_RCTL	0x00100  // RX Control - RW
 	#define E1000_RCTL_RXEN		(1 << 1)
 	#define E1000_RCTL_BAM		(1 << 15)	// Accept broadcast packets
@@ -66,11 +69,19 @@
 #define E1000_PHPM	0x00E14  // PHY Power Management
 	#define E1000_PHPM_NO_1000	(1 << 6)	// Disable 1000 Mb/s
 #define E1000_IMS	0x1508
+#define E1000_IAM	0x1510
 #define E1000_GPIE	0x1514	// General Purpose Interrupt Enable
 	#define E1000_GPIE_MSIX		(1 << 4)	// Multiple MSIX
+#define E1000_EICS	0x1520
 #define E1000_EIMS	0x1524
+#define E1000_EIAC	0x152C
+#define E1000_EIAM	0x1530
 #define E1000_EICR	0x1580
 #define E1000_EITR_0	0x1680
+#define E1000_EITR_1	0x1684
+#define E1000_EITR_2	0x1688
+#define E1000_EITR_3	0x168C
+#define E1000_EITR_4	0x1690
 #define E1000_IVAR	0x1700
 #define E1000_IVAR_MISC	0x1740
 #define E1000_PCS_LCTL	0x4208	// PCS Link Control
@@ -186,23 +197,5 @@ struct eth_packet {
 
 
 #define print(...)          printk("Ethernet: " __VA_ARGS__)
-
-#define TEST2
-
-#ifdef TEST1
-#define ONE
-#define MSIX
-#endif
-
-#ifdef TEST2
-#define MSIX
-#endif
-
-#ifdef TEST3
-#define ONE
-#endif
-
-
-
 
 #endif // I210_H
