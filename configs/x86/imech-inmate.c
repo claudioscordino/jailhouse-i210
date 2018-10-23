@@ -6,8 +6,8 @@
 struct {
 	struct jailhouse_cell_desc cell;
 	__u64 cpus[1];
-	struct jailhouse_memory mem_regions[5];
-/* 	struct jailhouse_irqchip irqchips[1]; */
+	struct jailhouse_memory mem_regions[4];
+	//struct jailhouse_irqchip irqchips[1];
 	struct jailhouse_cache cache_regions[1];
 	__u8 pio_bitmap[0x2000];
 	struct jailhouse_pci_device pci_devices[1];
@@ -24,7 +24,8 @@ struct {
 		.cpu_set_size = sizeof(config.cpus),
 		.num_memory_regions = ARRAY_SIZE(config.mem_regions),
 		.num_cache_regions = ARRAY_SIZE(config.cache_regions),
-/* 		.num_irqchips = ARRAY_SIZE(config.irqchips), */
+		//.num_irqchips = ARRAY_SIZE(config.irqchips),
+		.num_irqchips = 0,
 		.pio_bitmap_size = ARRAY_SIZE(config.pio_bitmap),
 		.num_pci_devices = ARRAY_SIZE(config.pci_devices),
                 .num_pci_caps = ARRAY_SIZE(config.pci_caps),
@@ -59,25 +60,17 @@ struct {
 		},
 
                 /* Ethernet BAR0 */ {
-                        .phys_start = 0xdf100000,
-                        .virt_start = 0xdf100000,
+                        .phys_start = 0xdf000000,
+                        .virt_start = 0xdf000000,
+                        .size = 0x00200000,
+                        .flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE,
+                },
+                /* Ethernet BAR3 */ {
+                        .phys_start = 0xdf200000,
+                        .virt_start = 0xdf200000,
                         .size = 0x00100000,
                         .flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE,
                 },
-		/* MemRegion: df000000-df0fffff : 0000:03:00.0 */
-		{
-			.phys_start = 0xdf000000,
-			.virt_start = 0xdf000000,
-			.size = 0x100000,
-			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE,
-		},
-		/* MemRegion: df201000-df203fff : igb */
-		{
-			.phys_start = 0xdf201000,
-			.virt_start = 0xdf201000,
-			.size = 0x3000,
-			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE,
-		},
 	},
 
 	.cache_regions = {
@@ -112,13 +105,9 @@ struct {
         .pci_devices = {
                   { /* Ethernet @03:00.0 */
 			.type = JAILHOUSE_PCI_TYPE_DEVICE,
-			.iommu = 1,
+			//.iommu = 1,
 			.domain = 0x0,
 			.bdf = 0x300,
-			.bar_mask = {
-				0xfff00000, 0x00000000, 0xffffffe0,
-				0xffffc000, 0x00000000, 0x00000000,
-			},
 			.caps_start = 0, // Root cell says 43
 			.num_caps = 7,
 			.num_msi_vectors = 1,
