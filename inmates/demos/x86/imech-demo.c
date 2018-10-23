@@ -6,6 +6,8 @@
 #include <inmate.h>
 #include "i210.h"
 
+//#define MSIX
+
 void irq_handler(void);
 
 // ============================ Data structures ================================
@@ -228,8 +230,11 @@ static void interrupt_enable(u16 dev)
 		// Set MSI IRQ vector
 		int_set_handler(ETH_IRQ_VECTOR, irq_handler);
 
-		//pci_msi_set_vector(devs[dev].bdf, ETH_IRQ_VECTOR);
+#ifdef MSIX
 		pci_msix_set_vector(devs[dev].bdf, ETH_IRQ_VECTOR, 0);
+#else
+		pci_msi_set_vector(devs[dev].bdf, ETH_IRQ_VECTOR);
+#endif
 }
 
 static void eth_set_speed(u16 dev, u16 speed)
@@ -307,6 +312,7 @@ static void eth_setup_rx(u16 dev)
 	mmio_write32(devs[dev].bar_addr + E1000_EITR_3, 0x08);
 	mmio_write32(devs[dev].bar_addr + E1000_EITR_4, 0x08);
 
+#ifdef MSIX
 	// Enable all interrupts:
 	mmio_write32(devs[dev].bar_addr + E1000_IMS, 0x0);
 
@@ -319,11 +325,31 @@ static void eth_setup_rx(u16 dev)
 
 	mmio_write32(devs[dev].bar_addr + E1000_EIAM, 0xFFFFFFFF);
 
+#else
+	// Enable all interrupts:
+	mmio_write32(devs[dev].bar_addr + E1000_IMS, 0xFFFFFFFF);
+	mmio_write32(devs[dev].bar_addr + E1000_ICS, 0xFFFFFFFF);
+
+	mmio_write32(devs[dev].bar_addr + E1000_IAM, 0xFFFFFFFF);
+
+	mmio_write32(devs[dev].bar_addr + E1000_EIMS, 0x0);
+	mmio_write32(devs[dev].bar_addr + E1000_EICS, 0x0);
+
+	mmio_write32(devs[dev].bar_addr + E1000_EIAC, 0x0);
+
+	mmio_write32(devs[dev].bar_addr + E1000_EIAM, 0x0);
+#endif
+
+
+
 
 	// Linux value (dumped): 0x50080004
 	val = mmio_read32(devs[dev].bar_addr + E1000_GPIE);
 	val |= ((1 << 0) | (1 << 30) | (1 << 31));
 	val &= ~(1 << 4);
+#if !defined(MSIX)
+	val = 0;
+#endif
  	mmio_write32(devs[dev].bar_addr + E1000_GPIE, val);
 
 
