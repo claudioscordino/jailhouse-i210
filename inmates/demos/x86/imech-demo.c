@@ -141,7 +141,7 @@ static void eth_get_mac_addr(u16 dev)
 void irq_handler(void)
 {
 	while (true)
-        	printk("FIRE!!!!!!!!!!!!!!!!!11111\n");
+        	printk("FIRE!!\n");
 }
 
 
@@ -235,6 +235,7 @@ static void interrupt_enable(u16 dev)
 #else
 		pci_msi_set_vector(devs[dev].bdf, ETH_IRQ_VECTOR);
 #endif
+		asm volatile("sti");
 }
 
 static void eth_set_speed(u16 dev, u16 speed)
@@ -384,7 +385,7 @@ static void eth_setup_rx(u16 dev)
 	// Linux value (dumped): 0x04448022
 	val = mmio_read32(devs[dev].bar_addr + E1000_RCTL);
 	val &= ~(E1000_RCTL_BSIZE);
-	val |= (E1000_RCTL_BAM); // Accept Broadcast Packets
+	val &= ~(E1000_RCTL_BAM); // Accept Broadcast Packets
 	val |= (E1000_RCTL_RXEN | E1000_RCTL_SECRC | E1000_RCTL_BSIZE_2048);
 	mmio_write32(devs[dev].bar_addr + E1000_RCTL, val);
 
